@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(corepack enable:*)",
+      "Bash(corepack prepare:*)",
+      "Read(//Users/ty/.local/share/pnpm/**)",
+      "Read(//Users/ty/Library/pnpm/**)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/api/leagues/\\\\[id\\\\]/roster/lineup)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/api/leagues/\\\\[id\\\\]/roster/drop)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/league/\\\\[id\\\\]/roster)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/api/leagues/\\\\[id\\\\]/schedule/generate)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/league/\\\\[id\\\\]/matchup)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/league/\\\\[id\\\\]/standings)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/api/leagues/\\\\[id\\\\]/waivers/claim)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/api/leagues/\\\\[id\\\\]/waivers/process)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/api/leagues/\\\\[id\\\\]/transactions)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/league/\\\\[id\\\\]/waivers)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/league/\\\\[id\\\\]/transactions)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/league/\\\\[id\\\\]/chat)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/api/leagues/\\\\[id\\\\]/chat)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/api/leagues/\\\\[id\\\\]/draft-picks)",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/api/leagues/\\\\[id\\\\]/trades/\\\\[tradeId\\\\])",
+      "Bash(mkdir -p /Users/ty/Documents/projects/fanbase_app/apps/web/app/league/\\\\[id\\\\]/trades/\\\\[tradeId\\\\])",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(grep:*)"
+    ]
+  }
+}
