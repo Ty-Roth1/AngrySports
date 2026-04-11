@@ -85,12 +85,12 @@ export async function POST() {
   const mlbIds = [...new Set(rows.map(r => r.mlb_player_id))]
   const { data: players } = await admin
     .from('players')
-    .select('id, mlb_player_id')
-    .in('mlb_player_id', mlbIds)
+    .select('id, mlb_id')
+    .in('mlb_id', mlbIds)
 
   const mlbToId = new Map<number, string>()
   for (const p of players ?? []) {
-    if (p.mlb_player_id) mlbToId.set(p.mlb_player_id, p.id)
+    if (p.mlb_id) mlbToId.set(p.mlb_id, p.id)
   }
 
   const rowsWithId = rows.map(r => ({
