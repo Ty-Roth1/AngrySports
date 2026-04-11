@@ -118,16 +118,16 @@ export async function POST(
     // Record transaction
     const { data: txn } = await admin.from('transactions').insert({
       league_id: leagueId,
-      team_id: myTeam.id,
+      initiated_by_team_id: myTeam.id,
       type: 'add',
       status: 'completed',
-      executed_at: new Date().toISOString(),
+      processed_at: new Date().toISOString(),
     }).select('id').single()
 
     if (txn) {
-      const items: any[] = [{ transaction_id: txn.id, player_id: player_add_id, action: 'add', team_id: myTeam.id }]
+      const items: any[] = [{ transaction_id: txn.id, player_id: player_add_id, from_team_id: null, to_team_id: myTeam.id }]
       if (player_drop_id) {
-        items.push({ transaction_id: txn.id, player_id: player_drop_id, action: 'drop', team_id: myTeam.id })
+        items.push({ transaction_id: txn.id, player_id: player_drop_id, from_team_id: myTeam.id, to_team_id: null })
       }
       await admin.from('transaction_items').insert(items)
     }
