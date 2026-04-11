@@ -1,66 +1,135 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
+import { RosterGrid } from '@/components/league/RosterGrid'
 import { LeagueNav } from '@/components/league/LeagueNav'
-
-// Position display order for roster
-const POSITION_ORDER = ['C','1B','2B','SS','3B','IF','OF','DH','UTIL','SP','RP','P','BENCH','IL','TAXI','NA']
 
 export default async function TeamRosterPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; teamId: string }>
+  searchParams: Promise<{ date?: string }>
 }) {
   const { id: leagueId, teamId } = await params
+  const { date: dateParam } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Get league + settings
   const { data: league } = await supabase
     .from('leagues')
-    .select('id, name, commissioner_id, co_commissioner_id')
+    .select('id, name, status, season_year, is_contract_league, has_taxi_squad, commissioner_id, co_commissioner_id, league_settings(*)')
     .eq('id', leagueId)
     .single()
   if (!league) notFound()
 
+  // Get the team being viewed
   const { data: team } = await supabase
     .from('fantasy_teams')
-    .select('id, name, abbreviation, wins, losses, ties, points_for, owner_id')
+    .select('id, name, abbreviation, wins, losses, ties, points_for, owner_id, faab_remaining')
     .eq('id', teamId)
     .eq('league_id', leagueId)
     .single()
   if (!team) notFound()
 
+  const isCommissioner = league.commissioner_id === user.id || league.co_commissioner_id === user.id
+  const isOwner = team.owner_id === user.id
+  const isReadOnly = !isOwner && !isCommissioner
+
+  // Fetch roster with player info
   const { data: rosterRows } = await supabase
     .from('rosters')
     .select(`
-      id, slot_type,
-      players(id, mlb_id, full_name, primary_position, mlb_team, status, is_rookie, is_second_year)
+      id, slot_type, acquisition_type, acquired_at,
+      players (id, mlb_id, full_name, primary_position, eligible_positions, mlb_team, status, is_rookie, is_second_year)
     `)
     .eq('team_id', teamId)
     .order('slot_type')
 
-  const isCommissioner = league.commissioner_id === user.id || league.co_commissioner_id === user.id
+  // Fetch contracts if contract league
+  let contracts: Record<string, { id: string; salary: number; years_total: number; years_remaining: number; expires_after_season: number; contract_type: string }> = {}
+  if (league.is_contract_league && rosterRows && rosterRows.length > 0) {
+    const playerIds = rosterRows.map(r => (r.players as any).id)
+    const { data: contractData } = await supabase
+      .from('contracts')
+      .select('id, player_id, salary, years_total, years_remaining, expires_after_season, contract_type')
+      .in('player_id', playerIds)
+      .eq('league_id', leagueId)
+      .is('voided_at', null)
 
-  // Sort by position order
-  const sorted = (rosterRows ?? []).slice().sort((a, b) => {
-    const ai = POSITION_ORDER.indexOf(a.slot_type)
-    const bi = POSITION_ORDER.indexOf(b.slot_type)
-    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+    for (const c of contractData ?? []) {
+      contracts[c.player_id] = {
+        id: c.id,
+        salary: c.salary,
+        years_total: c.years_total,
+        years_remaining: c.years_remaining,
+        expires_after_season: c.expires_after_season,
+        contract_type: c.contract_type,
+      }
+    }
+  }
+
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
+  const selectedDate = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : today
+
+  // Find the matchup covering the selected date for this team
+  const { data: currentMatchup } = await supabase
+    .from('matchups')
+    .select('id, period_start, period_end')
+    .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
+    .lte('period_start', selectedDate)
+    .order('period_start', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  type ScoreEntry = { fantasy_points: number; batting: any; pitching: any }
+  const weekScores: Record<string, ScoreEntry> = {}
+  const todayScores: Record<string, ScoreEntry> = {}
+
+  if (currentMatchup) {
+    const { data: gameScores } = await supabase
+      .from('player_game_scores')
+      .select('player_id, fantasy_points, raw_stats, mlb_game_id, game_date')
+      .eq('team_id', teamId)
+      .eq('matchup_id', currentMatchup.id)
+
+    for (const gs of gameScores ?? []) {
+      const isPitching = (gs.mlb_game_id as number) < 0
+
+      if (!weekScores[gs.player_id]) weekScores[gs.player_id] = { fantasy_points: 0, batting: null, pitching: null }
+      weekScores[gs.player_id].fantasy_points += Number(gs.fantasy_points)
+      if (isPitching) weekScores[gs.player_id].pitching = gs.raw_stats
+      else            weekScores[gs.player_id].batting  = gs.raw_stats
+
+      if (gs.game_date === selectedDate) {
+        if (!todayScores[gs.player_id]) todayScores[gs.player_id] = { fantasy_points: 0, batting: null, pitching: null }
+        todayScores[gs.player_id].fantasy_points += Number(gs.fantasy_points)
+        if (isPitching) todayScores[gs.player_id].pitching = gs.raw_stats
+        else            todayScores[gs.player_id].batting  = gs.raw_stats
+      }
+    }
+  }
+
+  const players = (rosterRows ?? []).map(r => {
+    const p = r.players as any
+    return {
+      roster_id: r.id,
+      player_id: p.id,
+      mlb_id: p.mlb_id,
+      full_name: p.full_name,
+      primary_position: p.primary_position,
+      mlb_team: p.mlb_team,
+      eligible_positions: p.eligible_positions ?? [],
+      status: p.status,
+      slot_type: r.slot_type,
+      is_rookie: p.is_rookie,
+      is_second_year: p.is_second_year ?? false,
+    }
   })
 
-  const SLOT_LABELS: Record<string, string> = {
-    C: 'C', '1B': '1B', '2B': '2B', '3B': '3B', SS: 'SS',
-    IF: 'IF', OF: 'OF', UTIL: 'UTIL',
-    SP: 'SP', RP: 'RP', P: 'P',
-    BENCH: 'BN', IL: 'IL', TAXI: 'TX', NA: 'NA',
-  }
-
-  const STATUS_STYLES: Record<string, string> = {
-    active: 'text-green-400', injured: 'text-red-400',
-    minors: 'text-yellow-400', inactive: 'text-gray-500',
-  }
+  const settings = (league.league_settings as any) ?? {}
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -69,94 +138,50 @@ export default async function TeamRosterPage({
           <h1 className="text-2xl font-bold text-white">{team.name}</h1>
           <p className="text-gray-400 text-sm mt-1">
             {league.name} · {team.wins}–{team.losses} · {team.points_for?.toFixed(1) ?? '0.0'} pts
+            {settings.waiver_type === 'faab' && team.faab_remaining != null && (
+              <span className="ml-2 text-green-400">${team.faab_remaining} FAAB</span>
+            )}
           </p>
         </div>
         <Link
           href={`/league/${leagueId}/standings`}
           className="text-sm text-gray-400 hover:text-white transition-colors"
         >
-          ← Back to Standings
+          ← Standings
         </Link>
       </div>
 
       <LeagueNav leagueId={leagueId} active="" isCommissioner={isCommissioner} />
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-800 bg-gray-800/40">
-          <h3 className="font-semibold text-sm text-white">
-            Roster
-            <span className="ml-2 text-xs font-normal text-gray-400">
-              {sorted.length} player{sorted.length !== 1 ? 's' : ''}
-            </span>
-          </h3>
-        </div>
-        <table className="w-full text-sm text-white">
-          <thead>
-            <tr className="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-800">
-              <th className="text-left px-3 py-2 w-10">Slot</th>
-              <th className="text-left px-3 py-2">Player</th>
-              <th className="text-left px-3 py-2 w-24">Position</th>
-              <th className="text-left px-3 py-2 w-20">Team</th>
-              <th className="text-left px-3 py-2 w-20">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-600">
-                  No players on this roster.
-                </td>
-              </tr>
-            ) : (
-              sorted.map((r, i) => {
-                const p = r.players as any
-                if (!p) return null
-                return (
-                  <tr key={r.id} className="border-b border-gray-800 last:border-0 hover:bg-gray-800/20">
-                    <td className="px-3 py-2">
-                      <span className="text-xs font-mono font-bold text-gray-500">
-                        {SLOT_LABELS[r.slot_type] ?? r.slot_type}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <div className="relative w-7 h-7 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
-                          <Image
-                            src={`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${p.mlb_id}/headshot/67/current`}
-                            alt={p.full_name}
-                            fill
-                            className="object-cover object-center"
-                            unoptimized
-                          />
-                        </div>
-                        <div>
-                          <Link
-                            href={`/players/${p.id}`}
-                            className="font-medium text-white hover:text-red-400 transition-colors text-sm"
-                          >
-                            {p.full_name}
-                          </Link>
-                          {p.is_second_year
-                            ? <span className="ml-1 text-xs text-blue-400">2nd</span>
-                            : p.is_rookie && <span className="ml-1 text-xs font-bold text-yellow-400">R</span>
-                          }
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-sm text-gray-400">{p.primary_position}</td>
-                    <td className="px-3 py-2 text-sm text-gray-400">{p.mlb_team ?? '—'}</td>
-                    <td className="px-3 py-2">
-                      <span className={`text-xs font-medium capitalize ${STATUS_STYLES[p.status] ?? 'text-gray-400'}`}>
-                        {p.status}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      <RosterGrid
+        players={players}
+        leagueId={leagueId}
+        teamId={teamId}
+        settings={{
+          spots_c:    settings.spots_c    ?? 1,
+          spots_1b:   settings.spots_1b   ?? 1,
+          spots_2b:   settings.spots_2b   ?? 1,
+          spots_3b:   settings.spots_3b   ?? 1,
+          spots_ss:   settings.spots_ss   ?? 1,
+          spots_of:   settings.spots_of   ?? 3,
+          spots_if:   settings.spots_if   ?? 0,
+          spots_util: settings.spots_util ?? 1,
+          spots_sp:   settings.spots_sp   ?? 2,
+          spots_rp:   settings.spots_rp   ?? 2,
+          spots_p:    settings.spots_p    ?? 0,
+          spots_bench: settings.spots_bench ?? 4,
+          spots_il:   settings.spots_il   ?? 2,
+          has_taxi_squad: !!(league as any).has_taxi_squad,
+        }}
+        isContractLeague={!!league.is_contract_league}
+        contracts={contracts}
+        weekScores={weekScores}
+        todayScores={todayScores}
+        seasonYear={league.season_year ?? new Date().getFullYear()}
+        selectedDate={selectedDate}
+        matchupPeriod={currentMatchup ? { start: currentMatchup.period_start, end: currentMatchup.period_end } : null}
+        isReadOnly={isReadOnly}
+      />
     </div>
   )
 }

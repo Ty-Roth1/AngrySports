@@ -7,6 +7,7 @@ import { CareerStatsTable } from '@/components/player/CareerStatsTable'
 import { FantasyHistory } from '@/components/player/FantasyHistory'
 import { ContractEditForm } from '@/components/player/ContractEditForm'
 import { FantasyStatsPanel } from '@/components/player/FantasyStatsPanel'
+import { BackButton } from '@/components/BackButton'
 import Image from 'next/image'
 
 export default async function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
@@ -86,6 +87,11 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-12">
+      {/* Close / back button */}
+      <div className="flex justify-end">
+        <BackButton className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition-colors text-base" />
+      </div>
+
       {/* Header */}
       <div className="flex items-start gap-6">
         <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0">

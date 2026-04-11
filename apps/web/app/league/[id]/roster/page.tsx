@@ -52,7 +52,7 @@ export default async function RosterPage({
     .from('rosters')
     .select(`
       id, slot_type, acquisition_type, acquired_at,
-      players (id, mlb_id, full_name, primary_position, mlb_team, status, is_rookie, is_second_year)
+      players (id, mlb_id, full_name, primary_position, eligible_positions, mlb_team, status, is_rookie, is_second_year)
     `)
     .eq('team_id', myTeam.id)
     .order('slot_type')
@@ -133,6 +133,7 @@ export default async function RosterPage({
       full_name: p.full_name,
       primary_position: p.primary_position,
       mlb_team: p.mlb_team,
+      eligible_positions: p.eligible_positions ?? [],
       status: p.status,
       slot_type: r.slot_type,
       is_rookie: p.is_rookie,

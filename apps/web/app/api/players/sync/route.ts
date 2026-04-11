@@ -60,13 +60,48 @@ export async function POST(request: Request) {
 
     const allPlayers = [...mlbPlayers, ...minorPlayers]
 
+    // Fetch previous season's players to capture positions played last year
+    const prevSeason = season - 1
+    const prevResponse = await fetch(
+      `${MLB_API}/sports/1/players?season=${prevSeason}&gameType=R`,
+      { next: { revalidate: 3600 } }
+    )
+    const prevJson = prevResponse.ok ? await prevResponse.json() : { people: [] }
+    // Build a map of mlbId → positions played last year
+    const prevPositions = new Map<number, Set<string>>()
+    for (const p of prevJson.people ?? []) {
+      const s = new Set<string>()
+      for (const pos of p.allPositions ?? []) {
+        const mapped = mapPosition(pos.abbreviation ?? pos.code ?? '')
+        if (mapped) s.add(mapped)
+      }
+      const primary = mapPosition(p.primaryPosition?.abbreviation ?? p.primaryPosition?.name ?? '')
+      if (primary) s.add(primary)
+      if (s.size > 0) prevPositions.set(p.id, s)
+    }
+
     const upserts = allPlayers.map((p: any) => {
       const primaryPos = mapPosition(
         p.primaryPosition?.abbreviation ?? p.primaryPosition?.name ?? 'OF'
       )
       const eligible = new Set<string>([primaryPos])
+      // Outfield sub-positions → OF
       if (['LF', 'CF', 'RF', 'OF'].includes(p.primaryPosition?.abbreviation)) eligible.add('OF')
-      if (['SP', 'RP', 'P'].includes(primaryPos)) { eligible.add('SP'); eligible.add('RP') }
+
+      // Add positions from allPositions (current season, if API returns them)
+      for (const pos of p.allPositions ?? []) {
+        const mapped = mapPosition(pos.abbreviation ?? pos.code ?? '')
+        if (mapped) eligible.add(mapped)
+        if (['LF', 'CF', 'RF'].includes(pos.abbreviation ?? '')) eligible.add('OF')
+      }
+
+      // Add positions from previous season
+      for (const pos of prevPositions.get(p.id) ?? []) {
+        eligible.add(pos)
+      }
+
+      // Pitchers: if eligible for SP or RP, eligible for both
+      if (eligible.has('SP') || eligible.has('RP')) { eligible.add('SP'); eligible.add('RP') }
 
       const debutYear = p.mlbDebutDate ? parseInt(p.mlbDebutDate.split('-')[0]) : null
       // Rookie = debuted THIS season. Second-year = debuted LAST season.

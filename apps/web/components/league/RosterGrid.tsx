@@ -4,7 +4,7 @@ import React, { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { getEligibleSlots } from '@/lib/scoring'
+import { getEligibleSlotsForPositions } from '@/lib/scoring'
 
 // ─── Date navigation helpers ──────────────────────────────────────────────────
 
@@ -28,6 +28,7 @@ export interface RosterPlayer {
   mlb_id: number
   full_name: string
   primary_position: string
+  eligible_positions?: string[]
   mlb_team: string | null
   status: string
   slot_type: string
@@ -199,7 +200,7 @@ export function RosterGrid({
   players, leagueId, teamId, settings,
   isContractLeague = false, contracts = {},
   weekScores = {}, todayScores = {}, seasonYear,
-  selectedDate, matchupPeriod,
+  selectedDate, matchupPeriod, isReadOnly = false,
 }: {
   players: RosterPlayer[]
   leagueId: string
@@ -212,6 +213,7 @@ export function RosterGrid({
   seasonYear?: number
   selectedDate?: string
   matchupPeriod?: { start: string; end: string } | null
+  isReadOnly?: boolean
 }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -344,7 +346,7 @@ export function RosterGrid({
           weekScores={weekScores} todayScores={todayScores}
           pendingId={pendingId} droppingId={droppingId}
           onChangeSlot={changeSlot} onDrop={dropPlayer}
-          selectedDate={displayDate}
+          selectedDate={displayDate} isReadOnly={isReadOnly}
         />
       ) : (
         <PayrollView
@@ -352,12 +354,15 @@ export function RosterGrid({
           seasonYear={seasonYear ?? new Date().getFullYear()}
           leagueId={leagueId} teamId={teamId}
           onSaved={() => startTransition(() => router.refresh())}
+          isReadOnly={isReadOnly}
         />
       )}
 
-      <p className="text-xs text-gray-600">
-        Change a player&apos;s slot using the dropdown. Use Waivers to add free agents.
-      </p>
+      {!isReadOnly && (
+        <p className="text-xs text-gray-600">
+          Change a player&apos;s slot using the dropdown. Use Waivers to add free agents.
+        </p>
+      )}
     </div>
   )
 }
@@ -366,7 +371,7 @@ export function RosterGrid({
 
 function RosterView({
   slots, settings, isContractLeague, contracts, weekScores, todayScores,
-  pendingId, droppingId, onChangeSlot, onDrop, selectedDate,
+  pendingId, droppingId, onChangeSlot, onDrop, selectedDate, isReadOnly,
 }: {
   slots: RosterSlot[]
   settings: FullSettings
@@ -379,6 +384,7 @@ function RosterView({
   onChangeSlot: (id: string, slot: string) => void
   onDrop: (playerId: string, name: string) => void
   selectedDate?: string
+  isReadOnly?: boolean
 }) {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
   const isToday = !selectedDate || selectedDate === today
@@ -396,8 +402,8 @@ function RosterView({
     const contract = p ? contracts[p.player_id]   : null
     const todayLine = today ? formatStatline(today.batting, today.pitching) : ''
 
-    const eligible = p ? getEligibleSlots(
-      p.primary_position,
+    const eligible = p ? getEligibleSlotsForPositions(
+      p.eligible_positions?.length ? p.eligible_positions : [p.primary_position],
       { spots_if: settings.spots_if, spots_util: settings.spots_util, spots_p: settings.spots_p, spots_taxi: settings.has_taxi_squad ? 1 : 0 },
       { status: p.status, isRookie: p.is_rookie, isSecondYear: p.is_second_year }
     ) : []
@@ -488,33 +494,37 @@ function RosterView({
         )}
 
         {/* Slot selector */}
-        <td className="px-2 py-2 w-32">
-          {p && (
-            <select
-              value={p.slot_type}
-              disabled={loading}
-              onChange={e => onChangeSlot(p.roster_id, e.target.value)}
-              className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-red-500 disabled:opacity-50 w-full"
-            >
-              {eligible.map(s => (
-                <option key={s} value={s}>{SLOT_LABELS[s] ?? s}</option>
-              ))}
-            </select>
-          )}
-        </td>
+        {!isReadOnly && (
+          <td className="px-2 py-2 w-32">
+            {p && (
+              <select
+                value={p.slot_type}
+                disabled={loading}
+                onChange={e => onChangeSlot(p.roster_id, e.target.value)}
+                className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-red-500 disabled:opacity-50 w-full"
+              >
+                {eligible.map(s => (
+                  <option key={s} value={s}>{SLOT_LABELS[s] ?? s}</option>
+                ))}
+              </select>
+            )}
+          </td>
+        )}
 
         {/* Drop */}
-        <td className="px-2 py-2 text-right w-12">
-          {p && (
-            <button
-              onClick={() => onDrop(p.player_id, p.full_name)}
-              disabled={dropping}
-              className="text-xs text-gray-500 hover:text-red-400 transition-colors disabled:opacity-40"
-            >
-              {dropping ? '…' : 'Drop'}
-            </button>
-          )}
-        </td>
+        {!isReadOnly && (
+          <td className="px-2 py-2 text-right w-12">
+            {p && (
+              <button
+                onClick={() => onDrop(p.player_id, p.full_name)}
+                disabled={dropping}
+                className="text-xs text-gray-500 hover:text-red-400 transition-colors disabled:opacity-40"
+              >
+                {dropping ? '…' : 'Drop'}
+              </button>
+            )}
+          </td>
+        )}
       </tr>
     )
   }
@@ -536,8 +546,8 @@ function RosterView({
               <th className="text-left px-2 py-2">Player</th>
               <th className="text-right px-2 py-2 w-32">Pts</th>
               {isContractLeague && <th className="text-right px-2 py-2 w-16">AAV</th>}
-              <th className="text-left px-2 py-2 w-32">Move to</th>
-              <th className="px-2 py-2 w-12" />
+              {!isReadOnly && <th className="text-left px-2 py-2 w-32">Move to</th>}
+              {!isReadOnly && <th className="px-2 py-2 w-12" />}
             </tr>
           </thead>
           <tbody>
@@ -567,7 +577,7 @@ const BLANK_CONTRACT: Omit<ContractInfo, 'id'> = {
 }
 
 function PayrollView({
-  players, contracts, seasonYear, leagueId, teamId, onSaved,
+  players, contracts, seasonYear, leagueId, teamId, onSaved, isReadOnly = false,
 }: {
   players: RosterPlayer[]
   contracts: Record<string, ContractInfo>
@@ -575,6 +585,7 @@ function PayrollView({
   leagueId: string
   teamId: string
   onSaved: () => void
+  isReadOnly?: boolean
 }) {
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
   const [form, setForm] = useState<Omit<ContractInfo, 'id'>>(BLANK_CONTRACT)
@@ -645,7 +656,7 @@ function PayrollView({
     <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
       <div className="px-4 py-2.5 border-b border-gray-800 bg-gray-800/40">
         <h3 className="font-semibold text-sm text-white">Payroll — Next 5 Seasons</h3>
-        <p className="text-xs text-gray-500 mt-0.5">Click "Set" or "Edit" on any player to assign or update their contract.</p>
+        {!isReadOnly && <p className="text-xs text-gray-500 mt-0.5">Click &quot;Set&quot; or &quot;Edit&quot; on any player to assign or update their contract.</p>}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-white">
@@ -659,7 +670,7 @@ function PayrollView({
                   {y}
                 </th>
               ))}
-              <th className="px-4 py-2.5 w-20" />
+              {!isReadOnly && <th className="px-4 py-2.5 w-20" />}
             </tr>
           </thead>
           <tbody>
@@ -689,14 +700,16 @@ function PayrollView({
                         </td>
                       )
                     })}
-                    <td className="px-4 py-2.5 text-right">
-                      <button
-                        onClick={() => isEditing ? setEditingPlayerId(null) : startEdit(p)}
-                        className="text-xs text-gray-500 hover:text-red-400 transition-colors"
-                      >
-                        {isEditing ? 'Cancel' : c ? 'Edit' : 'Set'}
-                      </button>
-                    </td>
+                    {!isReadOnly && (
+                      <td className="px-4 py-2.5 text-right">
+                        <button
+                          onClick={() => isEditing ? setEditingPlayerId(null) : startEdit(p)}
+                          className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+                        >
+                          {isEditing ? 'Cancel' : c ? 'Edit' : 'Set'}
+                        </button>
+                      </td>
+                    )}
                   </tr>
 
                   {/* Inline edit form */}

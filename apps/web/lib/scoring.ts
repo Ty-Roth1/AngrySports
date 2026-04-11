@@ -289,6 +289,32 @@ export function getEligibleSlots(
   })
 }
 
+// Union of eligible slots across all of a player's positions (multi-position eligibility)
+const SLOT_ORDER = ['C','1B','2B','SS','3B','IF','OF','DH','UTIL','SP','RP','P','BENCH','IL','TAXI','NA']
+
+export function getEligibleSlotsForPositions(
+  positions: string[],
+  leagueSettings: {
+    spots_if: number
+    spots_util: number
+    spots_p: number
+    spots_taxi?: number
+  },
+  playerInfo?: {
+    status?: string
+    isRookie?: boolean
+    isSecondYear?: boolean
+  }
+): string[] {
+  const all = new Set<string>()
+  for (const pos of positions) {
+    for (const slot of getEligibleSlots(pos, leagueSettings, playerInfo)) {
+      all.add(slot)
+    }
+  }
+  return SLOT_ORDER.filter(s => all.has(s))
+}
+
 // ─── Round-robin schedule generation ─────────────────────────────────────────
 
 // Returns an array of rounds, each round is an array of [homeTeamId, awayTeamId] pairs
