@@ -200,16 +200,15 @@ export default async function TeamRosterPage({
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-xs text-gray-500 uppercase tracking-wide">
-              {isViewingToday ? 'Today' : selectedDate}
-            </p>
-            <p className="text-2xl font-bold text-white">
+            <p className="text-3xl font-bold text-white leading-none">
               {todayTotal > 0 ? `+${todayTotal.toFixed(1)}` : todayTotal.toFixed(1)}
-              <span className="text-sm font-normal text-gray-400 ml-1">pts</span>
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {isViewingToday ? 'today' : selectedDate}
             </p>
             {currentMatchup && (
-              <p className="text-xs text-gray-500">
-                Week <span className="text-gray-300">{weekTotal.toFixed(1)}</span>
+              <p className="text-xs text-gray-600 mt-1">
+                wk {weekTotal.toFixed(1)}
               </p>
             )}
           </div>
