@@ -133,7 +133,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
             )}
           </div>
           {/* Fantasy rankings — pre-computed from season MLB stats via rankings sync */}
-          {(ovrRank || seasonPts) && (
+          {(ovrRank || actualSeasonPts > 0) && (
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               {ovrRank && (
                 <span className="px-2 py-0.5 bg-gray-800 border border-gray-700 text-gray-200 text-xs font-bold rounded font-mono">
