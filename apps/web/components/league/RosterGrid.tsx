@@ -220,7 +220,7 @@ export function RosterGrid({
   const [error, setError] = useState<string | null>(null)
   const [view, setView] = useState<'roster' | 'payroll'>('roster')
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
   const displayDate = selectedDate ?? today
   const isToday = displayDate === today
 
@@ -380,7 +380,7 @@ function RosterView({
   onDrop: (playerId: string, name: string) => void
   selectedDate?: string
 }) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
   const isToday = !selectedDate || selectedDate === today
   const dayLabel = isToday ? 'Td' : formatDate(selectedDate!).split(',')[0]  // e.g. "Mon"
   const splitIdx = slots.findIndex(s => ['BENCH', 'IL', 'TAXI', 'NA'].includes(s.slot_type))
