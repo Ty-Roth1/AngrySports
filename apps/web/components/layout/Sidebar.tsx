@@ -14,7 +14,7 @@ export function Sidebar() {
   ]
 
   return (
-    <aside className={`flex-shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col transition-all duration-200 ${collapsed ? 'w-14' : 'w-56'}`}>
+    <aside className={`flex-shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col transition-all duration-200 ${collapsed ? 'w-12' : 'w-44'}`}>
       {/* Header */}
       <div className={`flex items-center border-b border-gray-800 ${collapsed ? 'justify-center p-3' : 'justify-between p-4'}`}>
         {!collapsed && (
