@@ -130,7 +130,7 @@ export default async function WaiversPage({
     const posDiff = (POSITION_RANK[a.primary_position] ?? 9) - (POSITION_RANK[b.primary_position] ?? 9)
     if (posDiff !== 0) return posDiff
     return a.full_name.localeCompare(b.full_name)
-  }).slice(0, 100)
+  }).slice(0, q ? 200 : 100)
 
   // Attach probable start info to free agents
   const freeAgentsWithStarts = (freeAgents ?? []).map(p => ({
