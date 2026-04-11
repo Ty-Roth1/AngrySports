@@ -6,6 +6,7 @@ import { PercentileBars } from '@/components/player/PercentileBars'
 import { CareerStatsTable } from '@/components/player/CareerStatsTable'
 import { FantasyHistory } from '@/components/player/FantasyHistory'
 import { ContractEditForm } from '@/components/player/ContractEditForm'
+import { FantasyStatsPanel } from '@/components/player/FantasyStatsPanel'
 import Image from 'next/image'
 
 export default async function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
@@ -62,6 +63,19 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
     .order('signed_at', { ascending: false })
 
   const isPitcher = ['SP', 'RP'].includes(player.primary_position)
+
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
+
+  // Fetch fantasy game scores + MLB data in parallel
+  const [fantasyScoresResult] = await Promise.all([
+    supabase
+      .from('player_game_scores')
+      .select('fantasy_points, raw_stats, mlb_game_id, game_date')
+      .eq('player_id', id)
+      .order('game_date', { ascending: false })
+      .limit(200),
+  ])
+  const fantasyScores = fantasyScoresResult.data ?? []
 
   // Fetch from MLB API + Savant in parallel
   const [mlbDetail, mlbStats, statcast] = await Promise.all([
@@ -123,6 +137,16 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
           </div>
         )}
       </div>
+
+      {/* Fantasy stats */}
+      <section>
+        <h2 className="text-lg font-semibold mb-4">Fantasy Stats</h2>
+        <FantasyStatsPanel
+          scores={fantasyScores as any}
+          isPitcher={isPitcher}
+          today={today}
+        />
+      </section>
 
       {/* Percentile bars — Savant style */}
       <section>
