@@ -20,10 +20,10 @@ export function Sidebar() {
         {!collapsed && (
           <Link href="/dashboard">
             <span
-              className="text-xl font-bold text-white tracking-widest"
+              className="text-xl font-bold tracking-widest"
               style={{ fontFamily: 'var(--font-orbitron)' }}
             >
-              12AM
+              <span className="text-white">12</span><span className="text-red-500">AM</span>
             </span>
           </Link>
         )}

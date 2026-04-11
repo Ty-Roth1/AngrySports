@@ -39,18 +39,10 @@ export function TopBar({ profile }: TopBarProps) {
   return (
     <header className="h-14 border-b border-gray-800 bg-gray-900 flex-shrink-0 grid grid-cols-3 items-center px-6">
 
-      {/* Left: league name + 12AM when inside a league */}
+      {/* Left: league name when inside a league */}
       <div className="flex items-center gap-2">
         {leagueName && (
-          <>
-            <span className="text-sm text-gray-400 truncate">{leagueName}</span>
-            <span
-              className="text-sm font-bold flex-shrink-0 tracking-widest"
-              style={{ fontFamily: 'var(--font-orbitron)' }}
-            >
-              <span className="text-white">12</span><span className="text-red-500">AM</span>
-            </span>
-          </>
+          <span className="text-sm text-gray-400 truncate">{leagueName}</span>
         )}
       </div>
 
