@@ -24,7 +24,7 @@ export async function POST(
   }
 
   const admin = createAdminClient()
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
 
   // Fetch all pending claims due today or earlier
   const { data: pendingClaims } = await admin

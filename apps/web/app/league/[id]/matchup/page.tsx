@@ -33,7 +33,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ id: st
     )
   }
 
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
 
   // Find current matchup for my team
   const { data: currentMatchup } = await supabase

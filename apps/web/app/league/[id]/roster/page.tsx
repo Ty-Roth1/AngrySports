@@ -80,7 +80,7 @@ export default async function RosterPage({
     }
   }
 
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
   // selectedDate: the date to show "day" stats for (defaults to today)
   const selectedDate = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : today
 

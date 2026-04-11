@@ -40,7 +40,7 @@ export default async function StandingsPage({ params }: { params: Promise<{ id: 
   })
 
   // Get last 5 matchup results per team
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
   const { data: recentMatchups } = await supabase
     .from('matchups')
     .select('home_team_id, away_team_id, home_score, away_score, status')

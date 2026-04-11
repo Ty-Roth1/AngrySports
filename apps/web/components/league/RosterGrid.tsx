@@ -160,27 +160,34 @@ function buildRosterSlots(players: RosterPlayer[], s: FullSettings): RosterSlot[
 function formatStatline(b: Record<string, number> | null, p: Record<string, number> | null): string {
   if (b) {
     const parts: string[] = []
-    // Hits/AB if we have AB; otherwise just H
-    if (b.AB !== undefined && b.AB > 0) {
-      parts.push(`${b.H ?? 0}/${b.AB}`)
-    } else if ((b.H ?? 0) > 0) {
-      parts.push(`${b.H}H`)
+    const singles = b.H ?? 0       // H stores singles only after scoring fix
+    const doubles = b['2B'] ?? 0
+    const triples = b['3B'] ?? 0
+    const hrs     = b.HR ?? 0
+    const totalHits = singles + doubles + triples + hrs
+    const ab = b.AB ?? 0
+
+    if (ab > 0) {
+      parts.push(`${totalHits}/${ab}`)
+    } else if (totalHits > 0) {
+      parts.push(`${totalHits}H`)
     }
-    if ((b['2B'] ?? 0) > 0) parts.push(`${b['2B']}2B`)
-    if ((b['3B'] ?? 0) > 0) parts.push(`${b['3B']}3B`)
-    if ((b.HR  ?? 0) > 0)   parts.push(`${b.HR}HR`)
-    if ((b.R   ?? 0) > 0)   parts.push(`${b.R}R`)
-    if ((b.RBI ?? 0) > 0)   parts.push(`${b.RBI}RBI`)
-    if ((b.SB  ?? 0) > 0)   parts.push(`${b.SB}SB`)
+    if (singles > 0) parts.push(singles === 1 ? '1B'         : `${singles} 1B`)
+    if (doubles > 0) parts.push(doubles === 1 ? '2B'         : `${doubles} 2B`)
+    if (triples > 0) parts.push(triples === 1 ? '3B'         : `${triples} 3B`)
+    if (hrs     > 0) parts.push(hrs     === 1 ? 'HR'         : `${hrs} HR`)
+    if ((b.R   ?? 0) > 0) parts.push(b.R   === 1 ? 'R'   : `${b.R} R`)
+    if ((b.RBI ?? 0) > 0) parts.push(b.RBI === 1 ? 'RBI' : `${b.RBI} RBI`)
+    if ((b.SB  ?? 0) > 0) parts.push(b.SB  === 1 ? 'SB'  : `${b.SB} SB`)
     return parts.join(', ')
   }
   if (p) {
     const parts: string[] = []
     if ((p.W  ?? 0) > 0)   parts.push('W')
     if ((p.SV ?? 0) > 0)   parts.push('SV')
-    if ((p.IP ?? 0) > 0)   parts.push(`${p.IP}IP`)
-    if ((p.K  ?? 0) > 0)   parts.push(`${p.K}K`)
-    if (p.ER !== undefined) parts.push(`${p.ER}ER`)
+    if ((p.IP ?? 0) > 0)   parts.push(`${p.IP} IP`)
+    if ((p.K  ?? 0) > 0)   parts.push(`${p.K} K`)
+    if (p.ER !== undefined) parts.push(`${p.ER} ER`)
     return parts.join(', ')
   }
   return ''
