@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const date: string = body.date ?? new Date().toISOString().split('T')[0]
+  const date: string = body.date ?? new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
 
   // 1. Fetch MLB games for the date
   const live = body.live !== false  // default true — include in-progress games

@@ -66,8 +66,8 @@ export default async function WaiversPage({
 
   // Fetch probable starters (today + tomorrow) for filter
   const admin = createAdminClient()
-  const today = new Date().toISOString().split('T')[0]
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+  const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
 
   const { data: probableStarts } = await admin
     .from('pitcher_probable_starts')

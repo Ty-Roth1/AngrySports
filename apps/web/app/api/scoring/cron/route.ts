@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const date = new Date().toISOString().split('T')[0]
+  const date = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
 
   // Call the existing scoring sync endpoint internally
   const origin = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
