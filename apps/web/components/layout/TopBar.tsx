@@ -13,7 +13,6 @@ export function TopBar({ profile }: TopBarProps) {
   const router = useRouter()
   const pathname = usePathname()
 
-  // Extract league id from URL if present
   const parts = pathname.split('/')
   const leagueId = parts[1] === 'league' && parts[2] ? parts[2] : null
 
@@ -38,35 +37,32 @@ export function TopBar({ profile }: TopBarProps) {
   }
 
   return (
-    <header className="h-14 relative flex items-center justify-between px-6 border-b border-gray-800 bg-gray-900 flex-shrink-0">
+    <header className="h-14 border-b border-gray-800 bg-gray-900 flex-shrink-0 grid grid-cols-3 items-center px-6">
 
-      {/* Left: league name + 12AM (when inside a league) */}
-      <div className="flex items-center gap-2 min-w-0">
+      {/* Left: league name + 12AM when inside a league */}
+      <div className="flex items-center gap-2">
         {leagueName && (
           <>
-            <span className="text-sm text-gray-400 truncate max-w-[200px]">{leagueName}</span>
+            <span className="text-sm text-gray-400 truncate">{leagueName}</span>
             <span
-              style={{ fontFamily: 'var(--font-orbitron)', letterSpacing: '0.1em' }}
-              className="text-sm font-bold flex-shrink-0"
+              className="text-sm font-bold flex-shrink-0 tracking-widest"
+              style={{ fontFamily: 'var(--font-orbitron)' }}
             >
-              <span className="text-white">12</span>
-              <span className="text-red-500">AM</span>
+              <span className="text-white">12</span><span className="text-red-500">AM</span>
             </span>
           </>
         )}
       </div>
 
       {/* Center: AngrySports logo */}
-      <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none select-none">
-        <Link href="/dashboard" className="pointer-events-auto">
-          <span className="text-xl font-extrabold tracking-tight text-white">
-            Angry<span className="text-red-500">Sports</span>
-          </span>
+      <div className="flex justify-center">
+        <Link href="/dashboard" className="text-xl font-extrabold tracking-tight text-white hover:opacity-80 transition-opacity">
+          Angry<span className="text-red-500">Sports</span>
         </Link>
       </div>
 
       {/* Right: account */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-end gap-3">
         <Link href="/account" className="text-sm text-gray-300 hover:text-white transition-colors">
           {profile?.display_name}
         </Link>
@@ -77,6 +73,7 @@ export function TopBar({ profile }: TopBarProps) {
           Sign out
         </button>
       </div>
+
     </header>
   )
 }
