@@ -76,7 +76,7 @@ export function extractBattingStats(mlbStats: Record<string, any>): RawGameStats
     RBI: mlbStats.rbi ?? 0,
     SB: mlbStats.stolenBases ?? 0,
     BB_b: mlbStats.baseOnBalls ?? 0,
-    H: mlbStats.hits ?? 0,
+    H: Math.max(0, (mlbStats.hits ?? 0) - (mlbStats.doubles ?? 0) - (mlbStats.triples ?? 0) - (mlbStats.homeRuns ?? 0)),
     '2B': mlbStats.doubles ?? 0,
     '3B': mlbStats.triples ?? 0,
     SO_b: mlbStats.strikeOuts ?? 0,
