@@ -436,9 +436,8 @@ function RosterView({
   const dayLabel = viewingToday ? 'Td' : formatDate(selectedDate!).split(',')[0]  // e.g. "Mon"
   const liveSet = new Set(liveTeams ?? [])
   const probableSet = new Set(probableStarterIds ?? [])
-  const splitIdx = slots.findIndex(s => ['BENCH', 'IL', 'TAXI', 'NA'].includes(s.slot_type))
-  const activeSlots   = splitIdx === -1 ? slots : slots.slice(0, splitIdx)
-  const inactiveSlots = splitIdx === -1 ? []    : slots.slice(splitIdx)
+  const activeSlots   = slots.filter(s => !['BENCH', 'IL', 'TAXI', 'NA'].includes(s.slot_type))
+  const inactiveSlots = slots.filter(s =>  ['BENCH', 'IL', 'TAXI', 'NA'].includes(s.slot_type))
 
   function SlotRow({ slot }: { slot: RosterSlot }) {
     const p        = slot.player

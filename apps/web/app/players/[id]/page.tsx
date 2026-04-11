@@ -121,6 +121,21 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
               </span>
             )}
           </div>
+          {/* Fantasy rankings */}
+          {(player.rank || player.position_rank) && (
+            <div className="flex items-center gap-2 mb-1">
+              {player.rank && (
+                <span className="px-2 py-0.5 bg-gray-800 border border-gray-700 text-gray-200 text-xs font-bold rounded font-mono">
+                  #{player.rank} OVR
+                </span>
+              )}
+              {player.position_rank && (
+                <span className="px-2 py-0.5 bg-gray-800 border border-gray-700 text-red-300 text-xs font-bold rounded font-mono">
+                  #{player.position_rank} {player.primary_position}
+                </span>
+              )}
+            </div>
+          )}
           {myRosterEntry && (
             <NicknameEditor
               rosterId={myRosterEntry.id}
