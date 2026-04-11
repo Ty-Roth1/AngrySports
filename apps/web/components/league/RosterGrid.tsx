@@ -362,7 +362,9 @@ export function RosterGrid({
         {isContractLeague && view !== 'history' && (
           <div className="text-right">
             <p className="text-xs text-gray-500">Total Payroll</p>
-            <p className="text-lg font-bold text-green-400">${totalPayroll.toLocaleString()}</p>
+            <p className={`text-lg font-bold ${totalPayroll >= 200 ? 'text-red-400' : 'text-green-400'}`}>
+              {fmtM(totalPayroll)}
+            </p>
           </div>
         )}
       </div>
@@ -621,6 +623,25 @@ function RosterView({
   )
 }
 
+// ─── Payroll helpers ──────────────────────────────────────────────────────────
+
+function fmtM(n: number): string {
+  return `$${n % 1 === 0 ? n : n.toFixed(1)}M`
+}
+
+const TAX_TIERS = [
+  { min: 240, label: '240M+',        penalties: ['Lose all prospects'] },
+  { min: 230, label: '230–239.9M',   penalties: ['Can only keep 1 prospect'] },
+  { min: 220, label: '220–229.9M',   penalties: [] },
+  { min: 210, label: '210–219.9M',   penalties: ['Lose all draft picks', 'Lose HTD'] },
+  { min: 200, label: '200–209.9M',   penalties: ['Draft pick pushed to end of round', 'Lose Young Player Extension (following season)'] },
+] as const
+
+function getTaxTier(total: number) {
+  if (total < 200) return null
+  return TAX_TIERS.find(t => total >= t.min) ?? null
+}
+
 // ─── Payroll view ─────────────────────────────────────────────────────────────
 
 const BLANK_CONTRACT: Omit<ContractInfo, 'id'> = {
@@ -750,7 +771,7 @@ function PayrollView({
                       return (
                         <td key={y} className="px-4 py-2.5 text-right">
                           {sal !== null
-                            ? <span className={`font-medium ${y === seasonYear ? 'text-green-400' : 'text-gray-300'}`}>${sal}</span>
+                            ? <span className={`font-medium ${y === seasonYear ? 'text-green-400' : 'text-gray-300'}`}>{fmtM(sal)}</span>
                             : <span className="text-gray-700">—</span>}
                         </td>
                       )
@@ -777,7 +798,7 @@ function PayrollView({
                         {saveError && <p className="text-red-400 text-xs mb-3">{saveError}</p>}
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                           <div>
-                            <label className="text-xs text-gray-500 block mb-1">Salary ($)</label>
+                            <label className="text-xs text-gray-500 block mb-1">Salary ($M)</label>
                             <input
                               type="number" min={1}
                               value={form.salary}
@@ -843,16 +864,48 @@ function PayrollView({
           <tfoot>
             <tr className="border-t border-gray-700 bg-gray-800/40">
               <td colSpan={3} className="px-4 py-3 text-sm font-bold text-white">Total Payroll</td>
-              {yearTotals.map((total, i) => (
-                <td key={i} className="px-4 py-3 text-right font-bold text-green-400">
-                  {total > 0 ? `$${total.toLocaleString()}` : '—'}
-                </td>
-              ))}
-              <td className="px-4 py-3" />
+              {yearTotals.map((total, i) => {
+                const overTax = total >= 200
+                return (
+                  <td key={i} className="px-4 py-3 text-right font-bold">
+                    {total > 0
+                      ? <span className={overTax ? 'text-red-400' : 'text-green-400'}>{fmtM(total)}</span>
+                      : <span className="text-gray-700">—</span>}
+                  </td>
+                )
+              })}
+              {!isReadOnly && <td className="px-4 py-3" />}
             </tr>
           </tfoot>
         </table>
       </div>
+
+      {/* Tax penalty banner — shown when current season payroll hits a tier */}
+      {(() => {
+        const tier = getTaxTier(yearTotals[0])
+        if (!tier) return null
+        return (
+          <div className="mx-4 mb-4 mt-0 bg-red-950/50 border border-red-800/60 rounded-lg px-4 py-3 space-y-1">
+            <p className="text-xs font-semibold text-red-400 uppercase tracking-wide">
+              ⚠ Luxury Tax — {tier.label}
+            </p>
+            {tier.penalties.length > 0 ? (
+              <ul className="space-y-0.5">
+                {tier.penalties.map(p => (
+                  <li key={p} className="text-xs text-red-300 flex items-start gap-1.5">
+                    <span className="mt-0.5 flex-shrink-0">•</span>{p}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-red-400/70 italic">No additional penalties at this tier.</p>
+            )}
+            <p className="text-xs text-red-500/60 pt-0.5">
+              Consecutive years over 200M move you to the next tier.
+            </p>
+          </div>
+        )
+      })()}
     </div>
   )
 }
