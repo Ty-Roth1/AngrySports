@@ -102,7 +102,6 @@ export default async function WaiversPage({
   let faQuery = supabase
     .from('players')
     .select('id, full_name, primary_position, mlb_team, status, is_rookie')
-    .neq('status', 'inactive')
     .order('full_name')
     .limit(200)  // fetch more; post-sort by rank/status happens in JS
 
