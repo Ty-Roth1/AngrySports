@@ -18,8 +18,8 @@ export async function GET(request: Request) {
     query = query.eq('game_date', dateParam)
   } else {
     // Default: return today and tomorrow
-    const today = new Date().toISOString().split('T')[0]
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
+    const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
     query = query.gte('game_date', today).lte('game_date', tomorrow)
   }
 
@@ -36,7 +36,7 @@ export async function POST() {
   const dates: string[] = []
   for (let i = 0; i < 3; i++) {
     const d = new Date(Date.now() + i * 86400000)
-    dates.push(d.toISOString().split('T')[0])
+    dates.push(d.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }))
   }
 
   const rows: any[] = []
