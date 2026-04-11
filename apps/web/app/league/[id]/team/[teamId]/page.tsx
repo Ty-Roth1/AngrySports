@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { RosterGrid } from '@/components/league/RosterGrid'
 import { LeagueNav } from '@/components/league/LeagueNav'
+import { TeamLogo } from '@/components/league/TeamLogoUpload'
 import { isActiveSlot } from '@/lib/scoring'
 
 export default async function TeamRosterPage({
@@ -29,7 +30,7 @@ export default async function TeamRosterPage({
   // Get the team being viewed
   const { data: team } = await supabase
     .from('fantasy_teams')
-    .select('id, name, abbreviation, wins, losses, ties, points_for, owner_id, faab_remaining')
+    .select('id, name, abbreviation, wins, losses, ties, points_for, owner_id, faab_remaining, logo_url')
     .eq('id', teamId)
     .eq('league_id', leagueId)
     .single()
@@ -113,15 +114,21 @@ export default async function TeamRosterPage({
     }
   }
 
-  // Fetch live games and probable starters for selected date
-  const [liveGamesRes, probableRes] = await Promise.all([
+  // Fetch live games, probable starters, and team history in parallel
+  const [liveGamesRes, probableRes, historyRes] = await Promise.all([
     fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=team`, { next: { revalidate: 120 } }),
     supabase
       .from('pitcher_probable_starts')
       .select('player_id')
       .eq('game_date', selectedDate)
       .not('player_id', 'is', null),
+    supabase
+      .from('team_season_records')
+      .select('id, season_year, is_champion, finish_place, awards, notes')
+      .eq('team_id', teamId)
+      .order('season_year', { ascending: false }),
   ])
+  const historyRecords = (historyRes.data ?? []) as any[]
 
   const liveTeams: string[] = []
   if (liveGamesRes.ok) {
@@ -173,14 +180,23 @@ export default async function TeamRosterPage({
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">{team.name}</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            {league.name} · {team.wins}–{team.losses} · {team.points_for?.toFixed(1) ?? '0.0'} pts
-            {settings.waiver_type === 'faab' && team.faab_remaining != null && (
-              <span className="ml-2 text-green-400">${team.faab_remaining} FAAB</span>
-            )}
-          </p>
+        <div className="flex items-center gap-3">
+          <TeamLogo
+            teamId={teamId}
+            logoUrl={(team as any).logo_url ?? null}
+            name={team.name}
+            size={48}
+            isOwner={isOwner}
+          />
+          <div>
+            <h1 className="text-2xl font-bold text-white">{team.name}</h1>
+            <p className="text-gray-400 text-sm mt-1">
+              {league.name} · {team.wins}–{team.losses} · {team.points_for?.toFixed(1) ?? '0.0'} pts
+              {settings.waiver_type === 'faab' && team.faab_remaining != null && (
+                <span className="ml-2 text-green-400">${team.faab_remaining} FAAB</span>
+              )}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
@@ -238,6 +254,7 @@ export default async function TeamRosterPage({
         isReadOnly={isReadOnly}
         liveTeams={liveTeams}
         probableStarterIds={probableStarterIds}
+        historyRecords={historyRecords}
       />
     </div>
   )

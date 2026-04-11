@@ -5,6 +5,7 @@ import { RosterGrid } from '@/components/league/RosterGrid'
 import { LeagueNav } from '@/components/league/LeagueNav'
 import { AutoSync } from '@/components/AutoSync'
 import { TeamNameEditor } from '@/components/league/TeamNameEditor'
+import { TeamLogo } from '@/components/league/TeamLogoUpload'
 import { isActiveSlot } from '@/lib/scoring'
 
 export default async function RosterPage({
@@ -32,7 +33,7 @@ export default async function RosterPage({
   // Find my team in this league
   const { data: myTeam } = await supabase
     .from('fantasy_teams')
-    .select('id, name, abbreviation, faab_remaining, wins, losses, ties, points_for')
+    .select('id, name, abbreviation, faab_remaining, wins, losses, ties, points_for, logo_url')
     .eq('league_id', leagueId)
     .eq('owner_id', user.id)
     .single()
@@ -125,15 +126,21 @@ export default async function RosterPage({
     }
   }
 
-  // Fetch live games (teams currently playing) and probable starters for selected date
-  const [liveGamesRes, probableRes] = await Promise.all([
+  // Fetch live games, probable starters, and team history in parallel
+  const [liveGamesRes, probableRes, historyRes] = await Promise.all([
     fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=team`, { next: { revalidate: 120 } }),
     supabase
       .from('pitcher_probable_starts')
       .select('player_id')
       .eq('game_date', selectedDate)
       .not('player_id', 'is', null),
+    supabase
+      .from('team_season_records')
+      .select('id, season_year, is_champion, finish_place, awards, notes')
+      .eq('team_id', myTeam.id)
+      .order('season_year', { ascending: false }),
   ])
+  const historyRecords = (historyRes.data ?? []) as any[]
 
   const liveTeams: string[] = []
   if (liveGamesRes.ok) {
@@ -190,17 +197,26 @@ export default async function RosterPage({
       <AutoSync intervalSeconds={60} />
       {/* Header */}
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">
-            {myTeam.name}
-            <TeamNameEditor leagueId={leagueId} teamId={myTeam.id} initialName={myTeam.name} initialAbbreviation={myTeam.abbreviation} />
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">
-            {league.name} · {myTeam.wins}–{myTeam.losses} · {myTeam.points_for.toFixed(1)} pts
-            {settings.waiver_type === 'faab' && myTeam.faab_remaining != null && (
-              <span className="ml-2 text-green-400">${myTeam.faab_remaining} FAAB</span>
-            )}
-          </p>
+        <div className="flex items-center gap-3">
+          <TeamLogo
+            teamId={myTeam.id}
+            logoUrl={(myTeam as any).logo_url ?? null}
+            name={myTeam.name}
+            size={48}
+            isOwner={true}
+          />
+          <div>
+            <h1 className="text-2xl font-bold text-white">
+              {myTeam.name}
+              <TeamNameEditor leagueId={leagueId} teamId={myTeam.id} initialName={myTeam.name} initialAbbreviation={myTeam.abbreviation} />
+            </h1>
+            <p className="text-gray-400 text-sm mt-1">
+              {league.name} · {myTeam.wins}–{myTeam.losses} · {myTeam.points_for.toFixed(1)} pts
+              {settings.waiver_type === 'faab' && myTeam.faab_remaining != null && (
+                <span className="ml-2 text-green-400">${myTeam.faab_remaining} FAAB</span>
+              )}
+            </p>
+          </div>
         </div>
 
         {/* Score card */}
@@ -263,6 +279,7 @@ export default async function RosterPage({
         matchupPeriod={currentMatchup ? { start: currentMatchup.period_start, end: currentMatchup.period_end } : null}
         liveTeams={liveTeams}
         probableStarterIds={probableStarterIds}
+        historyRecords={historyRecords}
       />
     </div>
   )

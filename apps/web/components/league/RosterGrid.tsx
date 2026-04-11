@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getEligibleSlotsForPositions } from '@/lib/scoring'
+import { HistoryView, type SeasonRecord } from '@/components/league/HistoryView'
 
 // ─── Date navigation helpers ──────────────────────────────────────────────────
 
@@ -218,6 +219,7 @@ export function RosterGrid({
   weekScores = {}, todayScores = {}, seasonYear,
   selectedDate, matchupPeriod, isReadOnly = false,
   liveTeams = [], probableStarterIds = [],
+  historyRecords = [],
 }: {
   players: RosterPlayer[]
   leagueId: string
@@ -233,13 +235,14 @@ export function RosterGrid({
   isReadOnly?: boolean
   liveTeams?: string[]
   probableStarterIds?: string[]
+  historyRecords?: SeasonRecord[]
 }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [pendingId,  setPendingId]  = useState<string | null>(null)
   const [droppingId, setDroppingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [view, setView] = useState<'roster' | 'payroll'>('roster')
+  const [view, setView] = useState<'roster' | 'payroll' | 'history'>('roster')
 
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
   const displayDate = selectedDate ?? today
@@ -304,22 +307,28 @@ export function RosterGrid({
 
       {/* Header bar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        {isContractLeague ? (
-          <div className="flex bg-gray-900 border border-gray-800 rounded-lg p-1 gap-1">
-            <button
-              onClick={() => setView('roster')}
-              className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${view === 'roster' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-            >
-              Roster
-            </button>
+        <div className="flex bg-gray-900 border border-gray-800 rounded-lg p-1 gap-1">
+          <button
+            onClick={() => setView('roster')}
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${view === 'roster' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            Roster
+          </button>
+          {isContractLeague && (
             <button
               onClick={() => setView('payroll')}
               className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${view === 'payroll' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}
             >
               Payroll
             </button>
-          </div>
-        ) : <div />}
+          )}
+          <button
+            onClick={() => setView('history')}
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${view === 'history' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            History
+          </button>
+        </div>
 
         {/* Date navigator — shows stats for selected date */}
         {view === 'roster' && (
@@ -350,7 +359,7 @@ export function RosterGrid({
           </div>
         )}
 
-        {isContractLeague && (
+        {isContractLeague && view !== 'history' && (
           <div className="text-right">
             <p className="text-xs text-gray-500">Total Payroll</p>
             <p className="text-lg font-bold text-green-400">${totalPayroll.toLocaleString()}</p>
@@ -358,7 +367,7 @@ export function RosterGrid({
         )}
       </div>
 
-      {view === 'roster' ? (
+      {view === 'roster' && (
         <RosterView
           slots={slots} settings={settings}
           isContractLeague={isContractLeague} contracts={contracts}
@@ -368,13 +377,21 @@ export function RosterGrid({
           selectedDate={displayDate} isReadOnly={isReadOnly}
           liveTeams={liveTeams} probableStarterIds={probableStarterIds}
         />
-      ) : (
+      )}
+      {view === 'payroll' && (
         <PayrollView
           players={players} contracts={contracts}
           seasonYear={seasonYear ?? new Date().getFullYear()}
           leagueId={leagueId} teamId={teamId}
           onSaved={() => startTransition(() => router.refresh())}
           isReadOnly={isReadOnly}
+        />
+      )}
+      {view === 'history' && (
+        <HistoryView
+          teamId={teamId}
+          records={historyRecords}
+          isOwner={!isReadOnly}
         />
       )}
 
