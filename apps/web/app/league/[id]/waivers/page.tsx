@@ -103,7 +103,7 @@ export default async function WaiversPage({
     .from('players')
     .select('id, full_name, primary_position, mlb_team, status, is_rookie')
     .order('full_name')
-    .limit(200)  // fetch more; post-sort by rank/status happens in JS
+    .limit(2000)
 
   if (rosteredIds.length > 0) faQuery = faQuery.not('id', 'in', `(${rosteredIds.join(',')})`)
   if (q) faQuery = faQuery.ilike('full_name', `%${q}%`)
