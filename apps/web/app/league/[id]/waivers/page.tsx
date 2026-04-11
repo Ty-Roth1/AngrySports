@@ -123,7 +123,7 @@ export default async function WaiversPage({
   const POSITION_RANK: Record<string, number> = {
     SP: 0, C: 1, SS: 2, '2B': 3, '3B': 4, RP: 5, '1B': 6, OF: 7, DH: 8,
   }
-  const STATUS_RANK: Record<string, number> = { active: 0, minors: 1 }
+  const STATUS_RANK: Record<string, number> = { active: 0, IL10: 1, IL60: 1, minors: 2 }
   const freeAgents = (freeAgentsRaw ?? []).sort((a, b) => {
     const statusDiff = (STATUS_RANK[a.status] ?? 2) - (STATUS_RANK[b.status] ?? 2)
     if (statusDiff !== 0) return statusDiff
