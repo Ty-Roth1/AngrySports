@@ -155,36 +155,42 @@ export async function POST(_request: Request) {
     }
     // Each position list is already in descending pts order
 
-    // Build upsert payload
-    const upserts: { mlb_id: number; rank: number; position_rank: number | null; season_pts: number; updated_at: string }[] = []
+    // Build update payload — keyed by UUID (primary key) so the operation is
+    // always an UPDATE, never an INSERT (avoids not-null constraint on full_name).
+    type RankRow = { id: string; rank: number; position_rank: number | null; season_pts: number; updated_at: string }
+    const updates: RankRow[] = []
     const now = new Date().toISOString()
 
     hitters.forEach((h, i) => {
+      const dbP = byMlbId[h.mlb_id]
+      if (!dbP) return
       const posArr  = byPos[h.pos] ?? []
       const posRank = posArr.findIndex(p => p.mlb_id === h.mlb_id) + 1
-      upserts.push({ mlb_id: h.mlb_id, rank: i + 1, position_rank: posRank || null, season_pts: Math.round(h.pts * 10) / 10, updated_at: now })
+      updates.push({ id: dbP.id, rank: i + 1, position_rank: posRank || null, season_pts: Math.round(h.pts * 10) / 10, updated_at: now })
     })
     pitchers.forEach((p, i) => {
-      upserts.push({ mlb_id: p.mlb_id, rank: i + 1, position_rank: null, season_pts: Math.round(p.pts * 10) / 10, updated_at: now })
+      const dbP = byMlbId[p.mlb_id]
+      if (!dbP) return
+      updates.push({ id: dbP.id, rank: i + 1, position_rank: null, season_pts: Math.round(p.pts * 10) / 10, updated_at: now })
     })
 
-    // Upsert in batches of 200
+    // Upsert by primary key (id) in batches of 200 — always updates, never inserts
     const BATCH = 200
     let total = 0
-    for (let i = 0; i < upserts.length; i += BATCH) {
-      const batch = upserts.slice(i, i + BATCH)
-      const { error } = await admin.from('players').upsert(batch, { onConflict: 'mlb_id' })
+    for (let i = 0; i < updates.length; i += BATCH) {
+      const batch = updates.slice(i, i + BATCH)
+      const { error } = await admin.from('players').upsert(batch, { onConflict: 'id' })
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
       total += batch.length
     }
 
     // Clear stale ranks for players not in this run
-    const rankedMlbIds = upserts.map(u => u.mlb_id)
-    if (rankedMlbIds.length > 0) {
+    const rankedIds = updates.map(u => u.id)
+    if (rankedIds.length > 0) {
       await admin
         .from('players')
         .update({ rank: null, position_rank: null, season_pts: null })
-        .not('mlb_id', 'in', `(${rankedMlbIds.join(',')})`)
+        .not('id', 'in', `(${rankedIds.join(',')})`)
         .not('rank', 'is', null)
     }
 
