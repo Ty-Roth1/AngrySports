@@ -8,6 +8,7 @@ import { FantasyHistory } from '@/components/player/FantasyHistory'
 import { ContractEditForm } from '@/components/player/ContractEditForm'
 import { FantasyStatsPanel } from '@/components/player/FantasyStatsPanel'
 import { BackButton } from '@/components/BackButton'
+import { NicknameEditor } from '@/components/player/NicknameEditor'
 import Image from 'next/image'
 
 export default async function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
@@ -40,6 +41,14 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
 
   const canEditContract = user && contract &&
     (user.id === (contract.fantasy_teams as any)?.owner_id)
+
+  // Find the current user's roster entry for this player (for nickname editing)
+  const { data: myRosterEntry } = user ? await supabase
+    .from('rosters')
+    .select('id, nickname, fantasy_teams!inner(owner_id)')
+    .eq('player_id', id)
+    .eq('fantasy_teams.owner_id', user.id)
+    .maybeSingle() : { data: null }
 
   // Get fantasy team history (all rosters this player has been on)
   const { data: rosterHistory } = await supabase
@@ -112,6 +121,12 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
               </span>
             )}
           </div>
+          {myRosterEntry && (
+            <NicknameEditor
+              rosterId={myRosterEntry.id}
+              initialNickname={(myRosterEntry as any).nickname ?? null}
+            />
+          )}
           <p className="text-gray-400 text-lg">
             {(() => {
               const eligible: string[] = player.eligible_positions ?? []

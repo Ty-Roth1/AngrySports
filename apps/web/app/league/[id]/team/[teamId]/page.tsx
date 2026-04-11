@@ -43,7 +43,7 @@ export default async function TeamRosterPage({
   const { data: rosterRows } = await supabase
     .from('rosters')
     .select(`
-      id, slot_type, acquisition_type, acquired_at,
+      id, slot_type, acquisition_type, acquired_at, nickname,
       players (id, mlb_id, full_name, primary_position, eligible_positions, mlb_team, status, is_rookie, is_second_year)
     `)
     .eq('team_id', teamId)
@@ -156,6 +156,7 @@ export default async function TeamRosterPage({
       slot_type: r.slot_type,
       is_rookie: p.is_rookie,
       is_second_year: p.is_second_year ?? false,
+      nickname: r.nickname ?? null,
     }
   })
 

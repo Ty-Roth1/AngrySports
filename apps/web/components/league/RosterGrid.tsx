@@ -34,6 +34,7 @@ export interface RosterPlayer {
   slot_type: string
   is_rookie: boolean
   is_second_year: boolean
+  nickname?: string | null
 }
 
 export interface FullSettings {
@@ -466,6 +467,9 @@ function RosterView({
                   >
                     {p.full_name}
                   </Link>
+                  {p.nickname && (
+                    <span className="text-xs text-gray-400 italic flex-shrink-0">({p.nickname})</span>
+                  )}
                   {/* 2nd-year overrides rookie badge */}
                   {p.is_second_year
                     ? <span className="text-xs font-medium text-blue-400 flex-shrink-0">2nd</span>
