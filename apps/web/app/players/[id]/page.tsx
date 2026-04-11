@@ -73,19 +73,84 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
     .order('signed_at', { ascending: false })
 
   const isPitcher = ['SP', 'RP'].includes(player.primary_position)
+  const PITCHER_POS = new Set(['SP', 'RP'])
 
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
+  const season = new Date().getFullYear()
 
-  // Fetch fantasy game scores + MLB data in parallel
-  const [fantasyScoresResult] = await Promise.all([
+  // Fetch fantasy game scores, all-player season totals, and MLB data in parallel
+  const [fantasyScoresResult, allScoresResult, allPlayersResult] = await Promise.all([
     supabase
       .from('player_game_scores')
       .select('fantasy_points, raw_stats, mlb_game_id, game_date')
       .eq('player_id', id)
       .order('game_date', { ascending: false })
       .limit(200),
+    // All player game scores this season — used to compute rankings
+    supabase
+      .from('player_game_scores')
+      .select('player_id, fantasy_points')
+      .gte('game_date', `${season}-01-01`)
+      .lte('game_date', `${season}-12-31`),
+    // All player positions (needed to categorize each player_id)
+    supabase
+      .from('players')
+      .select('id, primary_position')
+      .neq('status', 'inactive'),
   ])
   const fantasyScores = fantasyScoresResult.data ?? []
+
+  // ── Compute rankings from actual points scored ──────────────────────────────
+  // Aggregate total fantasy points per player_id
+  const seasonTotals: Record<string, number> = {}
+  for (const row of allScoresResult.data ?? []) {
+    seasonTotals[row.player_id] = (seasonTotals[row.player_id] ?? 0) + Number(row.fantasy_points)
+  }
+
+  // Build position map: player_id → primary_position
+  const positionMap: Record<string, string> = {}
+  for (const p of allPlayersResult.data ?? []) {
+    positionMap[p.id] = p.primary_position
+  }
+
+  // Build sorted lists: pitchers vs hitters, and per-position for hitters
+  type ScoredPlayer = { player_id: string; total: number }
+  const allHitters: ScoredPlayer[] = []
+  const allPitchers: ScoredPlayer[] = []
+  const byPosition: Record<string, ScoredPlayer[]> = {}
+
+  for (const [pid, total] of Object.entries(seasonTotals)) {
+    if (total <= 0) continue
+    const pos = positionMap[pid]
+    if (!pos) continue
+    const entry = { player_id: pid, total }
+    if (PITCHER_POS.has(pos)) {
+      allPitchers.push(entry)
+    } else {
+      allHitters.push(entry)
+      if (!byPosition[pos]) byPosition[pos] = []
+      byPosition[pos].push(entry)
+    }
+  }
+
+  // Sort descending by total points
+  const byScoredDesc = (a: ScoredPlayer, b: ScoredPlayer) => b.total - a.total
+  allHitters.sort(byScoredDesc)
+  allPitchers.sort(byScoredDesc)
+  for (const arr of Object.values(byPosition)) arr.sort(byScoredDesc)
+
+  // Find this player's ranks (1-based)
+  const ovrRank = isPitcher
+    ? allPitchers.findIndex(p => p.player_id === id) + 1
+    : allHitters.findIndex(p => p.player_id === id) + 1
+
+  const posRank = isPitcher
+    ? null  // pitchers only get the pitcher OVR
+    : (byPosition[player.primary_position]?.findIndex(p => p.player_id === id) ?? -1) + 1
+
+  const ovrLabel  = isPitcher ? 'P' : 'OVR'
+  const ovrTotal  = isPitcher ? allPitchers.length : allHitters.length
+  const posTotal  = byPosition[player.primary_position]?.length ?? 0
 
   // Fetch from MLB API + Savant in parallel
   const [mlbDetail, mlbStats, statcast] = await Promise.all([
@@ -121,17 +186,15 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
               </span>
             )}
           </div>
-          {/* Fantasy rankings */}
-          {(player.rank || player.position_rank) && (
+          {/* Fantasy rankings — based on actual fantasy points scored this season */}
+          {ovrRank > 0 && (
             <div className="flex items-center gap-2 mb-1">
-              {player.rank && (
-                <span className="px-2 py-0.5 bg-gray-800 border border-gray-700 text-gray-200 text-xs font-bold rounded font-mono">
-                  #{player.rank} OVR
-                </span>
-              )}
-              {player.position_rank && (
+              <span className="px-2 py-0.5 bg-gray-800 border border-gray-700 text-gray-200 text-xs font-bold rounded font-mono">
+                #{ovrRank} {ovrLabel} <span className="text-gray-500 font-normal">/ {ovrTotal}</span>
+              </span>
+              {!isPitcher && posRank && posRank > 0 && posTotal > 0 && (
                 <span className="px-2 py-0.5 bg-gray-800 border border-gray-700 text-red-300 text-xs font-bold rounded font-mono">
-                  #{player.position_rank} {player.primary_position}
+                  #{posRank} {player.primary_position} <span className="text-gray-500 font-normal">/ {posTotal}</span>
                 </span>
               )}
             </div>
