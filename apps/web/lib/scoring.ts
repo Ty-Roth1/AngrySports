@@ -153,13 +153,47 @@ export interface PlayerGameResult {
   pitching: RawGameStats | null
 }
 
-export async function fetchBoxScore(gamePk: number): Promise<PlayerGameResult[]> {
+// Fetch grand slam counts per batter from the play-by-play endpoint.
+// The boxscore doesn't include grandSlams per game, so we scan plays for
+// home runs hit with 3 runners on base.
+async function fetchGrandSlams(gamePk: number): Promise<Record<number, number>> {
   try {
-    const res = await fetch(`${MLB_API}/game/${gamePk}/boxscore`, {
+    const res = await fetch(`${MLB_API}/game/${gamePk}/playByPlay`, {
       next: { revalidate: 0 },
     })
-    if (!res.ok) return []
+    if (!res.ok) return {}
     const json = await res.json()
+    const slams: Record<number, number> = {}
+    for (const play of json.allPlays ?? []) {
+      const isHR = play.result?.eventType === 'home_run'
+      const runnersOn = (play.matchup?.postOnFirst ? 1 : 0)
+                      + (play.matchup?.postOnSecond ? 1 : 0)
+                      + (play.matchup?.postOnThird ? 1 : 0)
+      // Grand slam = HR with 3 runners already on base (bases loaded before the swing)
+      // We check pre-pitch runners via the count of runners in matchup.runners
+      const runners = (play.runners ?? []).filter((r: any) =>
+        r.movement?.start !== null && r.movement?.start !== 'score' && r.details?.isScoringEvent === false
+      )
+      // Simpler: rbi === 4 on a home run means grand slam
+      if (isHR && play.result?.rbi === 4) {
+        const batterId: number = play.matchup?.batter?.id
+        if (batterId) slams[batterId] = (slams[batterId] ?? 0) + 1
+      }
+    }
+    return slams
+  } catch {
+    return {}
+  }
+}
+
+export async function fetchBoxScore(gamePk: number): Promise<PlayerGameResult[]> {
+  try {
+    const [boxRes, grandSlams] = await Promise.all([
+      fetch(`${MLB_API}/game/${gamePk}/boxscore`, { next: { revalidate: 0 } }),
+      fetchGrandSlams(gamePk),
+    ])
+    if (!boxRes.ok) return []
+    const json = await boxRes.json()
 
     const decisions = json.decisions ?? {}
     const winnerId: number | null = decisions.winner?.id ?? null
@@ -184,10 +218,15 @@ export async function fetchBoxScore(gamePk: number): Promise<PlayerGameResult[]>
           (bs.atBats > 0 || bs.baseOnBalls > 0 || bs.hitByPitch > 0 || bs.sacrificeBunts > 0)
         const hasPitched = ps && (ps.inningsPitched !== '0.0' && ps.inningsPitched !== '0')
 
+        const battingStats = hasBatted ? extractBattingStats(bs) : null
+        if (battingStats && grandSlams[mlbId]) {
+          battingStats.SLAM = grandSlams[mlbId]
+        }
+
         results.push({
           mlbId,
           fullName,
-          batting: hasBatted ? extractBattingStats(bs) : null,
+          batting: battingStats,
           pitching: hasPitched
             ? extractPitchingStats(ps, mlbId === winnerId, mlbId === loserId, mlbId === saveId)
             : null,
