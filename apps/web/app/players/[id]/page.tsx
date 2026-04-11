@@ -88,13 +88,15 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
   const fantasyScores = fantasyScoresResult.data ?? []
 
   // Rankings are pre-computed by the rankings sync (admin panel → Sync Player Rankings)
-  // rank = OVR among all hitters (for hitters) or all pitchers (for pitchers)
-  // position_rank = rank within primary_position (hitters only)
-  // season_pts = computed season fantasy points from MLB API stats
-  const ovrRank  = (player as any).rank           as number | null
-  const posRank  = (player as any).position_rank  as number | null
-  const seasonPts = (player as any).season_pts    as number | null
+  const ovrRank = (player as any).rank          as number | null
+  const posRank = (player as any).position_rank as number | null
   const ovrLabel = isPitcher ? 'P' : 'OVR'
+
+  // Season pts: sum actual game scores (same source as Fantasy Stats section)
+  const season = new Date().getFullYear()
+  const actualSeasonPts = fantasyScores
+    .filter(s => s.game_date?.startsWith(String(season)))
+    .reduce((sum, s) => sum + Number(s.fantasy_points), 0)
 
   // Fetch from MLB API + Savant in parallel
   const [mlbDetail, mlbStats, statcast] = await Promise.all([
@@ -143,9 +145,9 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
                   #{posRank} {player.primary_position}
                 </span>
               )}
-              {seasonPts != null && (
+              {actualSeasonPts > 0 && (
                 <span className="px-2 py-0.5 bg-gray-800 border border-gray-700 text-yellow-300 text-xs font-bold rounded font-mono">
-                  {seasonPts.toFixed(1)} pts
+                  {actualSeasonPts.toFixed(1)} pts
                 </span>
               )}
             </div>
