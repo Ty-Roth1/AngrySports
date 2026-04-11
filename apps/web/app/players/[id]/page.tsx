@@ -113,7 +113,15 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
             )}
           </div>
           <p className="text-gray-400 text-lg">
-            {player.primary_position} · {player.mlb_team ?? 'Free Agent'}
+            {(() => {
+              const eligible: string[] = player.eligible_positions ?? []
+              const posOrder = ['C','1B','2B','SS','3B','OF','DH','SP','RP']
+              const display = eligible.length > 1
+                ? [...eligible].sort((a, b) => (posOrder.indexOf(a) + 1 || 99) - (posOrder.indexOf(b) + 1 || 99)).join('/')
+                : player.primary_position
+              return display
+            })()}
+            {' · '}{player.mlb_team ?? 'Free Agent'}
             {player.jersey_number ? ` · #${player.jersey_number}` : ''}
           </p>
           {mlbDetail && (

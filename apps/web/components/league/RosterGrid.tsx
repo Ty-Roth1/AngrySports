@@ -92,6 +92,19 @@ const STATUS_STYLES: Record<string, string> = {
 
 const PITCHER_POSITIONS = new Set(['SP', 'RP'])
 
+// Display order for positions in eligibility label
+const POS_ORDER = ['C','1B','2B','SS','3B','OF','DH','SP','RP']
+
+function formatEligiblePositions(primary: string, eligible?: string[]): string {
+  if (!eligible || eligible.length <= 1) return primary
+  const sorted = [...eligible].sort((a, b) => {
+    const ai = POS_ORDER.indexOf(a)
+    const bi = POS_ORDER.indexOf(b)
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+  })
+  return sorted.join('/')
+}
+
 // ─── Slot template builder ────────────────────────────────────────────────────
 
 function buildRosterSlots(players: RosterPlayer[], s: FullSettings): RosterSlot[] {
@@ -461,7 +474,8 @@ function RosterView({
                   )}
                 </div>
                 <p className="text-xs text-gray-500">
-                  {p.primary_position}{p.mlb_team ? ` · ${p.mlb_team}` : ''}
+                  {formatEligiblePositions(p.primary_position, p.eligible_positions)}
+                  {p.mlb_team ? ` · ${p.mlb_team}` : ''}
                   {' · '}
                   <span className={STATUS_STYLES[p.status] ?? 'text-gray-500'}>{p.status}</span>
                 </p>
