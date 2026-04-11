@@ -3,8 +3,9 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { RosterGrid } from '@/components/league/RosterGrid'
 import { LeagueNav } from '@/components/league/LeagueNav'
-import { AutoRefresh } from '@/components/AutoRefresh'
+import { AutoSync } from '@/components/AutoSync'
 import { TeamNameEditor } from '@/components/league/TeamNameEditor'
+import { isActiveSlot } from '@/lib/scoring'
 
 export default async function RosterPage({
   params,
@@ -174,9 +175,18 @@ export default async function RosterPage({
 
   const settings = (league.league_settings as any) ?? {}
 
+  // Compute today's and this week's points (active slot players only)
+  const todayTotal = players
+    .filter(p => isActiveSlot(p.slot_type))
+    .reduce((sum, p) => sum + (todayScores[p.player_id]?.fantasy_points ?? 0), 0)
+  const weekTotal = players
+    .filter(p => isActiveSlot(p.slot_type))
+    .reduce((sum, p) => sum + (weekScores[p.player_id]?.fantasy_points ?? 0), 0)
+  const isViewingToday = selectedDate === today
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <AutoRefresh intervalSeconds={120} />
+      <AutoSync intervalSeconds={60} />
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -191,12 +201,30 @@ export default async function RosterPage({
             )}
           </p>
         </div>
-        <Link
-          href={`/league/${leagueId}/waivers`}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors text-white"
-        >
-          Add Player
-        </Link>
+
+        {/* Score card */}
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">
+              {isViewingToday ? 'Today' : selectedDate}
+            </p>
+            <p className="text-2xl font-bold text-white">
+              {todayTotal > 0 ? `+${todayTotal.toFixed(1)}` : todayTotal.toFixed(1)}
+              <span className="text-sm font-normal text-gray-400 ml-1">pts</span>
+            </p>
+            {currentMatchup && (
+              <p className="text-xs text-gray-500">
+                Week <span className="text-gray-300">{weekTotal.toFixed(1)}</span>
+              </p>
+            )}
+          </div>
+          <Link
+            href={`/league/${leagueId}/waivers`}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors text-white"
+          >
+            Add Player
+          </Link>
+        </div>
       </div>
 
       <LeagueNav
