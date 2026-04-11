@@ -114,7 +114,7 @@ export default async function TeamRosterPage({
 
   // Fetch live games and probable starters for selected date
   const [liveGamesRes, probableRes] = await Promise.all([
-    fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}`, { next: { revalidate: 120 } }),
+    fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=team`, { next: { revalidate: 120 } }),
     supabase
       .from('pitcher_probable_starts')
       .select('player_id')
