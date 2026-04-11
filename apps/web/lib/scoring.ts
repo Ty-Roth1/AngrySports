@@ -22,6 +22,8 @@ export interface RawGameStats {
   '3B'?: number
   SO_b?: number
   CS?: number
+  SLAM?: number
+  GIDP?: number
   // Pitching
   W?: number
   L?: number
@@ -81,6 +83,8 @@ export function extractBattingStats(mlbStats: Record<string, any>): RawGameStats
     '3B': mlbStats.triples ?? 0,
     SO_b: mlbStats.strikeOuts ?? 0,
     CS: mlbStats.caughtStealing ?? 0,
+    SLAM: mlbStats.grandSlams ?? 0,
+    GIDP: mlbStats.groundIntoDoublePlay ?? 0,
   }
 }
 
