@@ -637,9 +637,9 @@ const TAX_TIERS = [
   { min: 200, label: '200–209.9M',   penalties: ['Draft pick pushed to end of round', 'Lose Young Player Extension (following season)'] },
 ] as const
 
-function getTaxTier(total: number) {
-  if (total < 200) return null
-  return TAX_TIERS.find(t => total >= t.min) ?? null
+function getActiveTaxTiers(total: number) {
+  if (total < 200) return []
+  return TAX_TIERS.filter(t => total >= t.min).reverse() // lowest to highest
 }
 
 // ─── Payroll view ─────────────────────────────────────────────────────────────
@@ -882,17 +882,18 @@ function PayrollView({
 
       {/* Tax penalty banner — shown when current season payroll hits a tier */}
       {(() => {
-        const tier = getTaxTier(yearTotals[0])
-        if (!tier) return null
+        const tiers = getActiveTaxTiers(yearTotals[0])
+        if (tiers.length === 0) return null
+        const allPenalties = tiers.flatMap(t => t.penalties)
         return (
-          <div className="mx-4 mb-4 mt-0 bg-red-950/50 border border-red-800/60 rounded-lg px-4 py-3 space-y-1">
+          <div className="mx-4 mb-4 mt-0 bg-red-950/50 border border-red-800/60 rounded-lg px-4 py-3 space-y-1.5">
             <p className="text-xs font-semibold text-red-400 uppercase tracking-wide">
-              ⚠ Luxury Tax — {tier.label}
+              ⚠ Luxury Tax Penalties
             </p>
-            {tier.penalties.length > 0 ? (
+            {allPenalties.length > 0 ? (
               <ul className="space-y-0.5">
-                {tier.penalties.map(p => (
-                  <li key={p} className="text-xs text-red-300 flex items-start gap-1.5">
+                {allPenalties.map((p, i) => (
+                  <li key={i} className="text-xs text-red-300 flex items-start gap-1.5">
                     <span className="mt-0.5 flex-shrink-0">•</span>{p}
                   </li>
                 ))}
