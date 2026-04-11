@@ -174,13 +174,20 @@ export async function POST(_request: Request) {
       updates.push({ id: dbP.id, rank: i + 1, position_rank: null, season_pts: Math.round(p.pts * 10) / 10, updated_at: now })
     })
 
-    // Upsert by primary key (id) in batches of 200 — always updates, never inserts
-    const BATCH = 200
+    // Update in parallel batches of 50 — plain UPDATE by UUID, never an INSERT
+    const PARALLEL = 50
     let total = 0
-    for (let i = 0; i < updates.length; i += BATCH) {
-      const batch = updates.slice(i, i + BATCH)
-      const { error } = await admin.from('players').upsert(batch, { onConflict: 'id' })
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    for (let i = 0; i < updates.length; i += PARALLEL) {
+      const batch = updates.slice(i, i + PARALLEL)
+      const results = await Promise.all(
+        batch.map(row =>
+          admin.from('players')
+            .update({ rank: row.rank, position_rank: row.position_rank, season_pts: row.season_pts, updated_at: row.updated_at })
+            .eq('id', row.id)
+        )
+      )
+      const err = results.find(r => r.error)?.error
+      if (err) return NextResponse.json({ error: err.message }, { status: 500 })
       total += batch.length
     }
 
