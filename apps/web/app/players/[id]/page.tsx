@@ -119,7 +119,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
             src={player.photo_url ?? `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${player.mlb_id}/headshot/67/current`}
             alt={player.full_name}
             fill
-            className="object-cover object-top"
+            className="object-cover object-center"
             unoptimized
           />
         </div>
