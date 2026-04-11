@@ -9,6 +9,7 @@ const LINKS = [
   { label: 'Transactions',    key: 'transactions' },
   { label: 'Trades',          key: 'trades' },
   { label: 'Chat',            key: 'chat' },
+  { label: 'League Settings', key: 'info' },
   { label: 'Manage Rosters',  key: 'commissioner', commishOnly: true },
   { label: 'Settings',        key: 'settings', commishOnly: true },
 ]
