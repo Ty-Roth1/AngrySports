@@ -19,8 +19,20 @@ export function TopBar({ profile }: TopBarProps) {
   }
 
   return (
-    <header className="h-14 flex items-center justify-between px-6 border-b border-gray-800 bg-gray-900 flex-shrink-0">
+    <header className="h-14 relative flex items-center justify-between px-6 border-b border-gray-800 bg-gray-900 flex-shrink-0">
       <div />
+
+      {/* 12AM logo — centered, non-interactive */}
+      <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none select-none">
+        <span
+          style={{ fontFamily: 'var(--font-orbitron)', letterSpacing: '0.12em' }}
+          className="text-xl font-bold"
+        >
+          <span className="text-white">12</span>
+          <span className="text-red-500">AM</span>
+        </span>
+      </div>
+
       <div className="flex items-center gap-3">
         <Link href="/account" className="text-sm text-gray-300 hover:text-white transition-colors">
           {profile?.display_name}
