@@ -285,6 +285,8 @@ export function getEligibleSlots(
     if (slot === 'NA'   && playerInfo?.status !== 'minors') return false
     // TAXI only available for rookies and second-year players
     if (slot === 'TAXI' && !playerInfo?.isRookie && !playerInfo?.isSecondYear) return false
+    // IL only available for players with an official IL10 or IL60 designation
+    if (slot === 'IL'   && playerInfo?.status !== 'IL10' && playerInfo?.status !== 'IL60') return false
     return true
   })
 }

@@ -88,6 +88,8 @@ const SLOT_LABELS: Record<string, string> = {
 const STATUS_STYLES: Record<string, string> = {
   active:   'text-green-400',
   injured:  'text-red-400',
+  IL10:     'text-orange-400',
+  IL60:     'text-red-400',
   minors:   'text-yellow-400',
   inactive: 'text-gray-500',
 }
@@ -488,6 +490,10 @@ function RosterView({
                   </Link>
                   {p.nickname && (
                     <span className="text-xs text-gray-400 italic flex-shrink-0">({p.nickname})</span>
+                  )}
+                  {/* IL designation badge */}
+                  {(p.status === 'IL10' || p.status === 'IL60') && (
+                    <span className="text-xs font-bold text-orange-400 flex-shrink-0">{p.status}</span>
                   )}
                   {/* 2nd-year overrides rookie badge */}
                   {p.is_second_year

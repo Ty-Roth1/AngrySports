@@ -37,6 +37,29 @@ export async function POST(request: Request) {
       if (t.id && t.abbreviation) teamAbbrMap[t.id] = t.abbreviation
     }
 
+    // Fetch IL status from all team 40-man rosters (concurrent)
+    // The bulk players endpoint doesn't include IL designation, so we pull team rosters
+    const ilStatusMap = new Map<number, 'IL10' | 'IL60'>()
+    await Promise.all(
+      (teamsJson.teams ?? []).map(async (team: any) => {
+        try {
+          const res = await fetch(
+            `${MLB_API}/teams/${team.id}/roster?rosterType=40Man&season=${season}`,
+            { next: { revalidate: 300 } }
+          )
+          if (!res.ok) return
+          const json = await res.json()
+          for (const entry of json.roster ?? []) {
+            const code: string = (entry.status?.code ?? '').toUpperCase()
+            const pid: number = entry.person?.id
+            if (!pid) continue
+            if (code.includes('10') || code === 'DL10') ilStatusMap.set(pid, 'IL10')
+            else if (code.includes('60') || code === 'DL60') ilStatusMap.set(pid, 'IL60')
+          }
+        } catch { /* ignore individual team failures */ }
+      })
+    )
+
     // Fetch all players on 40-man rosters + active rosters for the current season
     const response = await fetch(
       `${MLB_API}/sports/1/players?season=${season}&gameType=R`,
@@ -124,7 +147,8 @@ export async function POST(request: Request) {
         bats: ['L', 'R', 'S'].includes(p.batSide?.code) ? p.batSide.code : null,
         throws: ['L', 'R'].includes(p.pitchHand?.code) ? p.pitchHand.code : null,
         birth_date: p.birthDate ?? null,
-        status: p._isMinor ? 'minors' : (p.active ? 'active' : 'inactive'),
+        status: p._isMinor ? 'minors'
+               : (ilStatusMap.get(p.id) ?? (p.active ? 'active' : 'inactive')),
         is_rookie: isRookie,
         is_second_year: isSecondYear,
         pro_debut_year: debutYear,
