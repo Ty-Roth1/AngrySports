@@ -2,7 +2,11 @@
   "crons": [
     {
       "path": "/api/scoring/cron",
-      "schedule": "*/10 16-23 * * *"
+      "schedule": "*/10 17-23 * * *"
+    },
+    {
+      "path": "/api/scoring/cron",
+      "schedule": "*/10 0-7 * * *"
     }
   ]
 }

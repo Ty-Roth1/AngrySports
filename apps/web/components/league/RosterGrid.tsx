@@ -201,6 +201,7 @@ export function RosterGrid({
   isContractLeague = false, contracts = {},
   weekScores = {}, todayScores = {}, seasonYear,
   selectedDate, matchupPeriod, isReadOnly = false,
+  liveTeams = [], probableStarterIds = [],
 }: {
   players: RosterPlayer[]
   leagueId: string
@@ -214,6 +215,8 @@ export function RosterGrid({
   selectedDate?: string
   matchupPeriod?: { start: string; end: string } | null
   isReadOnly?: boolean
+  liveTeams?: string[]
+  probableStarterIds?: string[]
 }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -347,6 +350,7 @@ export function RosterGrid({
           pendingId={pendingId} droppingId={droppingId}
           onChangeSlot={changeSlot} onDrop={dropPlayer}
           selectedDate={displayDate} isReadOnly={isReadOnly}
+          liveTeams={liveTeams} probableStarterIds={probableStarterIds}
         />
       ) : (
         <PayrollView
@@ -372,6 +376,7 @@ export function RosterGrid({
 function RosterView({
   slots, settings, isContractLeague, contracts, weekScores, todayScores,
   pendingId, droppingId, onChangeSlot, onDrop, selectedDate, isReadOnly,
+  liveTeams, probableStarterIds, isToday,
 }: {
   slots: RosterSlot[]
   settings: FullSettings
@@ -385,10 +390,15 @@ function RosterView({
   onDrop: (playerId: string, name: string) => void
   selectedDate?: string
   isReadOnly?: boolean
+  liveTeams?: string[]
+  probableStarterIds?: string[]
+  isToday?: boolean
 }) {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
-  const isToday = !selectedDate || selectedDate === today
-  const dayLabel = isToday ? 'Td' : formatDate(selectedDate!).split(',')[0]  // e.g. "Mon"
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
+  const viewingToday = !selectedDate || selectedDate === todayStr
+  const dayLabel = viewingToday ? 'Td' : formatDate(selectedDate!).split(',')[0]  // e.g. "Mon"
+  const liveSet = new Set(liveTeams ?? [])
+  const probableSet = new Set(probableStarterIds ?? [])
   const splitIdx = slots.findIndex(s => ['BENCH', 'IL', 'TAXI', 'NA'].includes(s.slot_type))
   const activeSlots   = splitIdx === -1 ? slots : slots.slice(0, splitIdx)
   const inactiveSlots = splitIdx === -1 ? []    : slots.slice(splitIdx)
@@ -398,9 +408,9 @@ function RosterView({
     const dropping = p ? droppingId === p.player_id : false
     const loading  = p ? pendingId  === p.roster_id  : false
     const week     = p ? weekScores[p.player_id]  : null
-    const today    = p ? todayScores[p.player_id] : null
+    const dayScore = p ? todayScores[p.player_id] : null
     const contract = p ? contracts[p.player_id]   : null
-    const todayLine = today ? formatStatline(today.batting, today.pitching) : ''
+    const todayLine = dayScore ? formatStatline(dayScore.batting, dayScore.pitching) : ''
 
     const eligible = p ? getEligibleSlotsForPositions(
       p.eligible_positions?.length ? p.eligible_positions : [p.primary_position],
@@ -408,8 +418,13 @@ function RosterView({
       { status: p.status, isRookie: p.is_rookie, isSecondYear: p.is_second_year }
     ) : []
 
+    // Live game: player's MLB team is currently playing (only applies when viewing today)
+    const isLive = viewingToday && !!p?.mlb_team && liveSet.has(p.mlb_team)
+    // Probable starter: pitcher is scheduled to start on the selected date
+    const isProbable = !!p && probableSet.has(p.player_id)
+
     return (
-      <tr className={`border-b border-gray-800 last:border-0 ${p ? 'hover:bg-gray-800/30' : ''}`}>
+      <tr className={`border-b border-gray-800 last:border-0 transition-colors ${isLive ? 'bg-green-950/40 hover:bg-green-950/60' : p ? 'hover:bg-gray-800/30' : ''}`}>
         {/* Slot label */}
         <td className="px-2 py-2 w-9">
           <span className="text-xs font-mono font-bold text-gray-500">{slot.label}</span>
@@ -441,6 +456,9 @@ function RosterView({
                     ? <span className="text-xs font-medium text-blue-400 flex-shrink-0">2nd</span>
                     : p.is_rookie && <span className="text-xs font-bold text-yellow-400 flex-shrink-0">R</span>
                   }
+                  {isProbable && (
+                    <span className="text-green-400 flex-shrink-0" title="Probable starter">✓</span>
+                  )}
                 </div>
                 <p className="text-xs text-gray-500">
                   {p.primary_position}{p.mlb_team ? ` · ${p.mlb_team}` : ''}
@@ -464,11 +482,11 @@ function RosterView({
                   {week.fantasy_points > 0 ? `+${week.fantasy_points.toFixed(1)}` : '0'}
                 </span>
               </div>
-              {today && (
+              {dayScore && (
                 <div className="flex items-baseline justify-end gap-1 mt-0.5">
                   <span className="text-xs text-gray-600">{dayLabel}</span>
                   <span className="text-xs font-medium text-gray-300">
-                    {today.fantasy_points > 0 ? `+${today.fantasy_points.toFixed(1)}` : '0'}
+                    {dayScore.fantasy_points > 0 ? `+${dayScore.fantasy_points.toFixed(1)}` : '0'}
                   </span>
                 </div>
               )}

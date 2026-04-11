@@ -112,6 +112,35 @@ export default async function TeamRosterPage({
     }
   }
 
+  // Fetch live games and probable starters for selected date
+  const [liveGamesRes, probableRes] = await Promise.all([
+    fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}`, { next: { revalidate: 120 } }),
+    supabase
+      .from('pitcher_probable_starts')
+      .select('player_id')
+      .eq('game_date', selectedDate)
+      .not('player_id', 'is', null),
+  ])
+
+  const liveTeams: string[] = []
+  if (liveGamesRes.ok) {
+    const liveJson = await liveGamesRes.json()
+    for (const dateEntry of liveJson.dates ?? []) {
+      for (const game of dateEntry.games ?? []) {
+        if (game.status?.abstractGameState === 'Live') {
+          const away = game.teams?.away?.team?.abbreviation
+          const home = game.teams?.home?.team?.abbreviation
+          if (away) liveTeams.push(away)
+          if (home) liveTeams.push(home)
+        }
+      }
+    }
+  }
+
+  const probableStarterIds: string[] = (probableRes.data ?? [])
+    .map((r: any) => r.player_id)
+    .filter(Boolean)
+
   const players = (rosterRows ?? []).map(r => {
     const p = r.players as any
     return {
@@ -181,6 +210,8 @@ export default async function TeamRosterPage({
         selectedDate={selectedDate}
         matchupPeriod={currentMatchup ? { start: currentMatchup.period_start, end: currentMatchup.period_end } : null}
         isReadOnly={isReadOnly}
+        liveTeams={liveTeams}
+        probableStarterIds={probableStarterIds}
       />
     </div>
   )

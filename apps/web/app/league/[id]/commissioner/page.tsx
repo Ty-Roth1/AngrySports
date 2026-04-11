@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import { LeagueNav } from '@/components/league/LeagueNav'
 import { CommissionerRosterManager } from '@/components/league/CommissionerRosterManager'
 import { TeamNameEditor } from '@/components/league/TeamNameEditor'
+import { PositionsSyncButton } from '@/components/league/PositionsSyncButton'
 
 export default async function CommissionerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: leagueId } = await params
@@ -100,6 +101,16 @@ export default async function CommissionerPage({ params }: { params: Promise<{ i
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Position eligibility sync */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-white mb-1">Position Eligibility</h2>
+        <p className="text-xs text-gray-500 mb-3">
+          Fetches positions played this season and last from the MLB API and updates each player&apos;s eligible roster slots.
+          Run this once at the start of the season and again if you notice a player missing a position.
+        </p>
+        <PositionsSyncButton />
       </div>
 
       <CommissionerRosterManager
