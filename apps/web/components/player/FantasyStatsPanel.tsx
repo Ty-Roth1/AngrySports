@@ -26,7 +26,15 @@ function mergeStats(
 
 function groupByDate(scores: GameScore[]): DayStats[] {
   const byDate: Record<string, DayStats> = {}
+  // Track seen mlb_game_ids per date to avoid double-counting the same game
+  // across multiple matchup rows (can happen when data was written to multiple matchups)
+  const seenGames = new Set<string>()
+
   for (const s of scores) {
+    const gameKey = `${s.game_date}:${s.mlb_game_id}`
+    if (seenGames.has(gameKey)) continue
+    seenGames.add(gameKey)
+
     if (!byDate[s.game_date])
       byDate[s.game_date] = { date: s.game_date, fantasy_points: 0, batting: null, pitching: null }
     byDate[s.game_date].fantasy_points += Number(s.fantasy_points)
