@@ -97,7 +97,9 @@ const POS_ORDER = ['C','1B','2B','SS','3B','OF','DH','SP','RP']
 
 function formatEligiblePositions(primary: string, eligible?: string[]): string {
   if (!eligible || eligible.length <= 1) return primary
-  const sorted = [...eligible].sort((a, b) => {
+  const filtered = eligible.filter(p => p !== 'DH')
+  if (filtered.length <= 1) return filtered[0] ?? primary
+  const sorted = [...filtered].sort((a, b) => {
     const ai = POS_ORDER.indexOf(a)
     const bi = POS_ORDER.indexOf(b)
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
