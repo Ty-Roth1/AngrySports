@@ -27,6 +27,31 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
   const isCommissioner = league.commissioner_id === user.id
   const myTeam = league.fantasy_teams.find((t: any) => t.owner_id === user.id)
 
+  // Payroll per team (contract leagues only)
+  const payrollByTeam: Record<string, number> = {}
+  if (league.is_contract_league) {
+    const teamIds = league.fantasy_teams.map((t: any) => t.id)
+    const [rostersRes, contractsRes] = await Promise.all([
+      supabase
+        .from('rosters')
+        .select('team_id, player_id')
+        .in('team_id', teamIds),
+      supabase
+        .from('contracts')
+        .select('player_id, salary')
+        .eq('league_id', id)
+        .is('voided_at', null),
+    ])
+    const salaryByPlayer: Record<string, number> = {}
+    for (const c of contractsRes.data ?? []) {
+      salaryByPlayer[c.player_id] = Number(c.salary)
+    }
+    for (const r of rostersRes.data ?? []) {
+      const sal = salaryByPlayer[r.player_id] ?? 0
+      payrollByTeam[r.team_id] = (payrollByTeam[r.team_id] ?? 0) + sal
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
@@ -98,6 +123,9 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
               <th className="text-right px-5 py-2.5">W</th>
               <th className="text-right px-5 py-2.5">L</th>
               <th className="text-right px-5 py-2.5">PF</th>
+              {league.is_contract_league && (
+                <th className="text-right px-5 py-2.5">Payroll</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -107,14 +135,24 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
               .map((team: any) => (
                 <tr key={team.id}
                   className={`border-b border-gray-800 last:border-0 ${team.id === myTeam?.id ? 'bg-gray-800/40' : ''}`}>
-                  <td className="px-5 py-3 font-medium text-white">
-                    {team.name}
+                  <td className="px-5 py-3 font-medium">
+                    <Link
+                      href={`/league/${id}/team/${team.id}`}
+                      className="text-white hover:text-red-400 transition-colors"
+                    >
+                      {team.name}
+                    </Link>
                     {team.id === myTeam?.id && <span className="ml-2 text-xs text-red-400">(you)</span>}
                   </td>
                   <td className="px-5 py-3 text-gray-400">{team.profiles?.display_name}</td>
                   <td className="px-5 py-3 text-right text-gray-300">{team.wins}</td>
                   <td className="px-5 py-3 text-right text-gray-300">{team.losses}</td>
                   <td className="px-5 py-3 text-right text-gray-300">{team.points_for.toFixed(1)}</td>
+                  {league.is_contract_league && (
+                    <td className="px-5 py-3 text-right text-gray-300">
+                      ${(payrollByTeam[team.id] ?? 0).toLocaleString()}
+                    </td>
+                  )}
                 </tr>
               ))}
           </tbody>
