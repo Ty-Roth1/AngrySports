@@ -1,0 +1,20 @@
+# Capacitor www placeholder — never served in production
+www/
+
+node_modules/
+dist/
+
+# iOS — track the project but ignore build artifacts and CocoaPods output
+ios/App/Pods/
+ios/App/App/public/
+ios/App/.bundle/
+ios/.DS_Store
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Android (not used yet)
+android/
