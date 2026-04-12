@@ -20,6 +20,32 @@ export default function AdminPage() {
   const [seedStatus, setSeedStatus] = useState<string | null>(null)
   const [seedLoading, setSeedLoading] = useState(false)
 
+  const [importLeagueId, setImportLeagueId] = useState('')
+  const [importStatus, setImportStatus] = useState<string | null>(null)
+  const [importLoading, setImportLoading] = useState(false)
+  const [importLogs, setImportLogs] = useState<string[] | null>(null)
+
+  async function handleImportYahooRosters() {
+    if (!importLeagueId.trim()) return
+    setImportLoading(true)
+    setImportStatus(null)
+    setImportLogs(null)
+    const res = await fetch('/api/admin/import-yahoo-rosters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ league_id: importLeagueId.trim() }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setImportStatus(`Error: ${data.error}`)
+    } else {
+      const s = data.summary
+      setImportStatus(`Done — ${s.added} added, ${s.skipped} skipped, ${s.alreadyRostered} already rostered, ${s.notFound} not found`)
+      if (data.logs?.length) setImportLogs(data.logs)
+    }
+    setImportLoading(false)
+  }
+
   async function handleSeedRosters() {
     if (!seedLeagueId.trim()) return
     setSeedLoading(true)
@@ -309,6 +335,45 @@ export default function AdminPage() {
           <pre className={`text-xs whitespace-pre-wrap ${seedStatus.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>
             {seedStatus}
           </pre>
+        )}
+      </div>
+
+      {/* Import Yahoo Rosters */}
+      <div className="bg-gray-900 border border-purple-900/40 rounded-xl p-6 space-y-3">
+        <h2 className="font-semibold text-white">Import Yahoo Rosters</h2>
+        <p className="text-sm text-gray-400">
+          Imports all 10 teams&apos; opening-day rosters from the 2025 Yahoo draft PDF.
+          Skips players already rostered. Safe to re-run. Run MLB Player Sync first.
+        </p>
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">League ID</label>
+          <input
+            type="text"
+            value={importLeagueId}
+            onChange={e => setImportLeagueId(e.target.value)}
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            className="input w-full font-mono text-xs"
+          />
+        </div>
+        <button
+          onClick={handleImportYahooRosters}
+          disabled={importLoading || !importLeagueId.trim()}
+          className="px-5 py-2.5 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 rounded-lg font-semibold transition-colors text-white"
+        >
+          {importLoading ? 'Importing…' : 'Import Yahoo Rosters'}
+        </button>
+        {importStatus && (
+          <p className={`text-sm ${importStatus.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>
+            {importStatus}
+          </p>
+        )}
+        {importLogs && importLogs.length > 0 && (
+          <details className="mt-1">
+            <summary className="text-xs text-gray-400 cursor-pointer">View logs ({importLogs.length})</summary>
+            <pre className="text-xs text-gray-400 whitespace-pre-wrap mt-2 max-h-64 overflow-y-auto">
+              {importLogs.join('\n')}
+            </pre>
+          </details>
         )}
       </div>
     </div>
