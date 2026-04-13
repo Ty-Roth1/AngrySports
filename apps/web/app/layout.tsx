@@ -7,9 +7,20 @@ const inter = Inter({ subsets: ["latin"] });
 const orbitron = Orbitron({ subsets: ["latin"], variable: "--font-orbitron", weight: ["700"] });
 
 export const metadata: Metadata = {
-  title: "Angry Sports — Fantasy Baseball",
+  title: "12AM",
   description: "Your fully customizable fantasy baseball platform",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: '12AM',
+  },
 };
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
 
 export default function RootLayout({
   children,

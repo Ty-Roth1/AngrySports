@@ -29,7 +29,7 @@ export function LeagueNav({
   const visibleLinks = LINKS.filter(l => !l.commishOnly || isCommissioner)
 
   return (
-    <nav className="flex flex-wrap gap-1 border-b border-gray-800">
+    <nav className="hidden md:flex flex-wrap gap-1 border-b border-gray-800">
       {visibleLinks.map(l => (
         <Link
           key={l.key}

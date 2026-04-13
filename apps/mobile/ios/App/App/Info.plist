@@ -45,5 +45,29 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+
+	<!-- Allows the web content to extend behind the status bar for safe-area handling -->
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleLightContent</string>
+
+	<!-- Register custom URL scheme for deep links (Supabase auth, push notification taps) -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.angrysports.twelvam</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>twelvam</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Required for App Store submission: declare no extra encryption beyond iOS -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!-- Portrait-primary; landscape kept for score-watching convenience -->
+	<!-- (orientation keys already set above) -->
 </dict>
 </plist>

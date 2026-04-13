@@ -46,12 +46,13 @@ export function TopBar({ profile }: TopBarProps) {
         )}
       </div>
 
-      {/* Center: AngrySports logo */}
-      <div className="flex justify-center">
+      {/* Center: brand logo — hidden on mobile (bottom nav handles navigation) */}
+      <div className="hidden md:flex justify-center">
         <Link href="/dashboard" className="text-xl font-extrabold tracking-tight text-white hover:opacity-80 transition-opacity">
           Angry<span className="text-red-500">Sports</span>
         </Link>
       </div>
+      <div className="md:hidden" />
 
       {/* Right: account */}
       <div className="flex items-center justify-end gap-3">
