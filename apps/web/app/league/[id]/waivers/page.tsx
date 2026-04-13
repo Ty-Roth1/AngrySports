@@ -3,17 +3,19 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { LeagueNav } from '@/components/league/LeagueNav'
-import { WaiverBoard } from '@/components/league/WaiverBoard'
+import { PlayerBoard } from '@/components/league/PlayerBoard'
 
-export default async function WaiversPage({
+export default async function PlayersPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ q?: string; pos?: string; starting?: string }>
+  searchParams: Promise<{ q?: string; pos?: string; starting?: string; view?: string }>
 }) {
   const { id: leagueId } = await params
-  const { q, pos, starting } = await searchParams
+  const { q, pos, starting, view: viewParam } = await searchParams
+  const view = (viewParam === 'owned' || viewParam === 'all') ? viewParam : 'free_agents'
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -47,24 +49,29 @@ export default async function WaiversPage({
   const isFaab = waiverType === 'faab'
   const isOpenFa = waiverType === 'none'
 
-  // Get all rostered player IDs in this league
+  // All team IDs in this league
   const { data: allTeams } = await supabase
     .from('fantasy_teams')
-    .select('id')
+    .select('id, name, abbreviation')
     .eq('league_id', leagueId)
-
   const teamIds = allTeams?.map(t => t.id) ?? []
 
+  // All rostered player IDs + owner mapping
   let rosteredIds: string[] = []
+  const ownedByMap: Record<string, { id: string; name: string; abbreviation: string }> = {}
   if (teamIds.length > 0) {
     const { data: rosters } = await supabase
       .from('rosters')
-      .select('player_id')
+      .select('player_id, team_id')
       .in('team_id', teamIds)
-    rosteredIds = rosters?.map(r => r.player_id) ?? []
+    for (const r of rosters ?? []) {
+      rosteredIds.push(r.player_id)
+      const team = allTeams?.find(t => t.id === r.team_id)
+      if (team) ownedByMap[r.player_id] = { id: team.id, name: team.name, abbreviation: team.abbreviation }
+    }
   }
 
-  // Fetch probable starters (today + tomorrow) for filter
+  // Probable starters (today + tomorrow) — for pitcher filter
   const admin = createAdminClient()
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
   const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
@@ -75,7 +82,6 @@ export default async function WaiversPage({
     .gte('game_date', today)
     .lte('game_date', tomorrow)
 
-  // Build map: player_id → starts[]
   const startsMap = new Map<string, { game_date: string; opponent: string | null; home_away: string | null }[]>()
   for (const s of probableStarts ?? []) {
     if (!s.player_id) continue
@@ -92,53 +98,122 @@ export default async function WaiversPage({
     }
   }
 
-  // Determine which player IDs to filter to for "starting" filter
   let startingFilterIds: string[] | null = null
   if (starting === 'today') startingFilterIds = [...startingTodayIds]
   if (starting === 'tomorrow') startingFilterIds = [...startingTomorrowIds]
   if (starting === 'any') startingFilterIds = [...new Set([...startingTodayIds, ...startingTomorrowIds])]
 
-  // Search free agents
-  let faQuery = supabase
-    .from('players')
-    .select('id, full_name, primary_position, mlb_team, status, is_rookie')
-    .order('full_name')
-    .limit(2000)
+  type PlayerRow = {
+    id: string
+    full_name: string
+    primary_position: string
+    mlb_team: string | null
+    status: string
+    is_rookie: boolean
+    rank: number | null
+    season_pts: number | null
+    probable_starts: { game_date: string; opponent: string | null; home_away: string | null }[]
+    owned_by?: { id: string; name: string; abbreviation: string } | null
+  }
 
-  if (rosteredIds.length > 0) faQuery = faQuery.not('id', 'in', `(${rosteredIds.join(',')})`)
-  if (q) faQuery = faQuery.ilike('full_name', `%${q}%`)
-  if (pos) faQuery = faQuery.eq('primary_position', pos)
-  if (startingFilterIds !== null) {
-    if (startingFilterIds.length === 0) {
-      // No pitchers starting — return empty
-      faQuery = faQuery.eq('id', '00000000-0000-0000-0000-000000000000')
-    } else {
-      faQuery = faQuery.in('id', startingFilterIds)
+  let players: PlayerRow[] = []
+
+  if (view === 'free_agents') {
+    let faQuery = supabase
+      .from('players')
+      .select('id, full_name, primary_position, mlb_team, status, is_rookie, rank, season_pts')
+      .order('rank', { ascending: true, nullsFirst: false })
+      .limit(2000)
+
+    if (rosteredIds.length > 0) faQuery = faQuery.not('id', 'in', `(${rosteredIds.join(',')})`)
+    if (q) faQuery = faQuery.ilike('full_name', `%${q}%`)
+    if (pos) faQuery = faQuery.eq('primary_position', pos)
+    if (startingFilterIds !== null) {
+      if (startingFilterIds.length === 0) {
+        faQuery = faQuery.eq('id', '00000000-0000-0000-0000-000000000000')
+      } else {
+        faQuery = faQuery.in('id', startingFilterIds)
+      }
     }
+
+    const { data: faRaw } = await faQuery
+    const fa = (faRaw ?? []).slice(0, q ? 200 : 150)
+    players = fa.map(p => ({
+      ...p,
+      rank: (p as any).rank ?? null,
+      season_pts: (p as any).season_pts ?? null,
+      probable_starts: startsMap.get(p.id) ?? [],
+      owned_by: null,
+    }))
+
+  } else if (view === 'owned') {
+    const { data: rosterRows } = await supabase
+      .from('rosters')
+      .select(`
+        player_id,
+        players (id, full_name, primary_position, mlb_team, status, is_rookie, rank, season_pts),
+        fantasy_teams (id, name, abbreviation)
+      `)
+      .in('team_id', teamIds)
+
+    let owned: PlayerRow[] = (rosterRows ?? []).map(r => {
+      const p = r.players as any
+      const t = r.fantasy_teams as any
+      return {
+        id: p.id,
+        full_name: p.full_name,
+        primary_position: p.primary_position,
+        mlb_team: p.mlb_team,
+        status: p.status,
+        is_rookie: p.is_rookie,
+        rank: p.rank ?? null,
+        season_pts: p.season_pts ?? null,
+        probable_starts: startsMap.get(p.id) ?? [],
+        owned_by: { id: t.id, name: t.name, abbreviation: t.abbreviation },
+      }
+    })
+
+    if (q) owned = owned.filter(p => p.full_name.toLowerCase().includes(q.toLowerCase()))
+    if (pos) owned = owned.filter(p => p.primary_position === pos)
+
+    // Sort by rank (nulls last), then name
+    owned.sort((a, b) => {
+      if (a.rank !== null && b.rank !== null) return a.rank - b.rank
+      if (a.rank !== null) return -1
+      if (b.rank !== null) return 1
+      return a.full_name.localeCompare(b.full_name)
+    })
+    players = owned
+
+  } else {
+    // All players — fetch with filter, overlay ownership
+    let allQuery = supabase
+      .from('players')
+      .select('id, full_name, primary_position, mlb_team, status, is_rookie, rank, season_pts')
+      .order('rank', { ascending: true, nullsFirst: false })
+      .limit(q ? 300 : 200)
+
+    if (q) allQuery = allQuery.ilike('full_name', `%${q}%`)
+    if (pos) allQuery = allQuery.eq('primary_position', pos)
+    if (startingFilterIds !== null) {
+      if (startingFilterIds.length === 0) {
+        allQuery = allQuery.eq('id', '00000000-0000-0000-0000-000000000000')
+      } else {
+        allQuery = allQuery.in('id', startingFilterIds)
+      }
+    }
+
+    const { data: allRaw } = await allQuery
+    players = (allRaw ?? []).map(p => ({
+      ...p,
+      rank: (p as any).rank ?? null,
+      season_pts: (p as any).season_pts ?? null,
+      probable_starts: startsMap.get(p.id) ?? [],
+      owned_by: ownedByMap[p.id] ?? null,
+    }))
   }
 
-  const { data: freeAgentsRaw } = await faQuery
-
-  // Sort: active before minors, then by position scarcity, then name
-  const POSITION_RANK: Record<string, number> = {
-    SP: 0, C: 1, SS: 2, '2B': 3, '3B': 4, RP: 5, '1B': 6, OF: 7, DH: 8,
-  }
-  const STATUS_RANK: Record<string, number> = { active: 0, IL10: 1, IL60: 1, minors: 2 }
-  const freeAgents = (freeAgentsRaw ?? []).sort((a, b) => {
-    const statusDiff = (STATUS_RANK[a.status] ?? 2) - (STATUS_RANK[b.status] ?? 2)
-    if (statusDiff !== 0) return statusDiff
-    const posDiff = (POSITION_RANK[a.primary_position] ?? 9) - (POSITION_RANK[b.primary_position] ?? 9)
-    if (posDiff !== 0) return posDiff
-    return a.full_name.localeCompare(b.full_name)
-  }).slice(0, q ? 200 : 100)
-
-  // Attach probable start info to free agents
-  const freeAgentsWithStarts = (freeAgents ?? []).map(p => ({
-    ...p,
-    probable_starts: startsMap.get(p.id) ?? [],
-  }))
-
-  // My roster for "drop" selection
+  // My roster for drop selection
   const { data: myRoster } = await supabase
     .from('rosters')
     .select('player_id, slot_type, players(full_name, primary_position)')
@@ -155,11 +230,20 @@ export default async function WaiversPage({
 
   const positions = ['C','1B','2B','3B','SS','OF','SP','RP','DH']
 
+  const tabHref = (v: string) => {
+    const p = new URLSearchParams()
+    p.set('view', v)
+    if (q) p.set('q', q)
+    if (pos) p.set('pos', pos)
+    if (starting) p.set('starting', starting)
+    return `/league/${leagueId}/waivers?${p.toString()}`
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Waivers / Free Agents</h1>
+          <h1 className="text-2xl font-bold text-white">Players</h1>
           <p className="text-gray-400 text-sm mt-1">
             {league.name}
             {isFaab && (
@@ -174,8 +258,30 @@ export default async function WaiversPage({
 
       <LeagueNav leagueId={leagueId} active="waivers" isCommissioner={isCommissioner} />
 
+      {/* View tabs */}
+      <div className="flex gap-1 border-b border-gray-800">
+        {([
+          { key: 'free_agents', label: 'Free Agents' },
+          { key: 'owned',       label: 'Owned' },
+          { key: 'all',         label: 'All Players' },
+        ] as const).map(tab => (
+          <Link
+            key={tab.key}
+            href={tabHref(tab.key)}
+            className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+              view === tab.key
+                ? 'bg-gray-800 text-white border-b-2 border-red-500'
+                : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+            }`}
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </div>
+
       {/* Search / filter bar */}
       <form className="flex flex-wrap gap-3" method="GET">
+        <input type="hidden" name="view" value={view} />
         <input
           name="q"
           defaultValue={q}
@@ -187,21 +293,24 @@ export default async function WaiversPage({
           <option value="">All Pos</option>
           {positions.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-        <select name="starting" defaultValue={starting ?? ''} className="input w-44">
-          <option value="">All Pitchers</option>
-          <option value="today">Starting Today</option>
-          <option value="tomorrow">Starting Tomorrow</option>
-          <option value="any">Starting Today or Tomorrow</option>
-        </select>
+        {view !== 'owned' && (
+          <select name="starting" defaultValue={starting ?? ''} className="input w-44">
+            <option value="">All Pitchers</option>
+            <option value="today">Starting Today</option>
+            <option value="tomorrow">Starting Tomorrow</option>
+            <option value="any">Starting Today or Tomorrow</option>
+          </select>
+        )}
         <button type="submit" className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors text-white">
           Filter
         </button>
       </form>
 
-      <WaiverBoard
+      <PlayerBoard
         leagueId={leagueId}
         myTeamId={myTeam.id}
-        freeAgents={freeAgentsWithStarts}
+        players={players}
+        view={view}
         myRoster={(myRoster ?? []).map(r => ({ player_id: r.player_id, slot_type: r.slot_type, player: r.players as any }))}
         myClaims={(myClaims ?? []).map(c => ({ ...c, player: c.players as any }))}
         isFaab={isFaab}

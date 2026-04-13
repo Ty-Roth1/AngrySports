@@ -9,10 +9,18 @@ import { ContractEditForm } from '@/components/player/ContractEditForm'
 import { FantasyStatsPanel } from '@/components/player/FantasyStatsPanel'
 import { BackButton } from '@/components/BackButton'
 import { NicknameEditor } from '@/components/player/NicknameEditor'
+import { PlayerClaimButton } from '@/components/player/PlayerClaimButton'
 import Image from 'next/image'
 
-export default async function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PlayerPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ leagueId?: string }>
+}) {
   const { id } = await params
+  const { leagueId: contextLeagueId } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -97,6 +105,72 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
   const actualSeasonPts = fantasyScores
     .filter(s => s.game_date?.startsWith(String(season)))
     .reduce((sum, s) => sum + Number(s.fantasy_points), 0)
+
+  // League context — for "Add to Roster" button when navigated from players page
+  let leagueContext: {
+    leagueId: string
+    myTeamId: string
+    isFaab: boolean
+    isOpenFa: boolean
+    faabRemaining: number
+    isFA: boolean
+    myRoster: { player_id: string; full_name: string; primary_position: string }[]
+  } | null = null
+
+  if (contextLeagueId && user) {
+    const [leagueRes, myTeamRes] = await Promise.all([
+      supabase
+        .from('leagues')
+        .select('id, league_settings(waiver_type)')
+        .eq('id', contextLeagueId)
+        .single(),
+      supabase
+        .from('fantasy_teams')
+        .select('id, faab_remaining')
+        .eq('league_id', contextLeagueId)
+        .eq('owner_id', user.id)
+        .single(),
+    ])
+
+    if (leagueRes.data && myTeamRes.data) {
+      const settings = (leagueRes.data.league_settings as any) ?? {}
+      const waiverType = settings.waiver_type ?? 'standard'
+
+      // Check if this player is a FA in the league (not on any roster)
+      const { data: allTeams } = await supabase
+        .from('fantasy_teams')
+        .select('id')
+        .eq('league_id', contextLeagueId)
+      const leagueTeamIds = allTeams?.map(t => t.id) ?? []
+
+      const { data: existingRoster } = leagueTeamIds.length > 0 ? await supabase
+        .from('rosters')
+        .select('id')
+        .eq('player_id', id)
+        .in('team_id', leagueTeamIds)
+        .limit(1)
+        .maybeSingle() : { data: null }
+
+      const { data: myRosterRows } = await supabase
+        .from('rosters')
+        .select('player_id, players(full_name, primary_position)')
+        .eq('team_id', myTeamRes.data.id)
+
+      leagueContext = {
+        leagueId: contextLeagueId,
+        myTeamId: myTeamRes.data.id,
+        isFaab: waiverType === 'faab',
+        isOpenFa: waiverType === 'none',
+        faabRemaining: myTeamRes.data.faab_remaining ?? 0,
+        isFA: !existingRoster,
+        myRoster: (myRosterRows ?? []).map(r => ({
+          player_id: r.player_id,
+          full_name: (r.players as any)?.full_name ?? '',
+          primary_position: (r.players as any)?.primary_position ?? '',
+        })),
+      }
+    }
+  }
 
   // Fetch from MLB API + Savant in parallel
   const [mlbDetail, mlbStats, statcast] = await Promise.all([
@@ -188,14 +262,30 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
           )}
         </div>
 
-        {/* Current fantasy team badge */}
-        {contract && (
-          <div className="flex-shrink-0 bg-gray-900 border border-gray-700 rounded-xl p-4 text-right">
-            <p className="text-xs text-gray-400 mb-1">Fantasy Team</p>
-            <p className="text-sm font-semibold text-white">{(contract.fantasy_teams as any)?.name}</p>
-            <p className="text-xs text-gray-500">{(contract.fantasy_teams as any)?.leagues?.name}</p>
-          </div>
-        )}
+        {/* Right side: fantasy team badge or add button */}
+        <div className="flex-shrink-0 space-y-3">
+          {contract && (
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-4 text-right">
+              <p className="text-xs text-gray-400 mb-1">Fantasy Team</p>
+              <p className="text-sm font-semibold text-white">{(contract.fantasy_teams as any)?.name}</p>
+              <p className="text-xs text-gray-500">{(contract.fantasy_teams as any)?.leagues?.name}</p>
+            </div>
+          )}
+          {leagueContext?.isFA && (
+            <PlayerClaimButton
+              leagueId={leagueContext.leagueId}
+              playerId={id}
+              playerName={player.full_name}
+              playerPosition={player.primary_position}
+              playerTeam={player.mlb_team}
+              myTeamId={leagueContext.myTeamId}
+              myRoster={leagueContext.myRoster}
+              isFaab={leagueContext.isFaab}
+              isOpenFa={leagueContext.isOpenFa}
+              faabRemaining={leagueContext.faabRemaining}
+            />
+          )}
+        </div>
       </div>
 
       {/* Fantasy stats */}

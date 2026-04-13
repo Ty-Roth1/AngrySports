@@ -5,7 +5,7 @@ const LINKS = [
   { label: 'My Roster',       key: 'roster' },
   { label: 'Matchup',         key: 'matchup' },
   { label: 'Standings',       key: 'standings' },
-  { label: 'Waivers',         key: 'waivers' },
+  { label: 'Players',         key: 'waivers' },
   { label: 'Transactions',    key: 'transactions' },
   { label: 'Trades',          key: 'trades' },
   { label: 'Chat',            key: 'chat' },

@@ -138,7 +138,7 @@ export async function POST(_request: Request) {
     for (const [mlbIdStr, pts] of Object.entries(mlbPts)) {
       const mlbId = Number(mlbIdStr)
       const dbP   = byMlbId[mlbId]
-      if (!dbP || pts <= 0) continue
+      if (!dbP) continue
       const entry = { mlb_id: mlbId, pts, pos: dbP.primary_position }
       if (PITCHER_POS.has(dbP.primary_position)) pitchers.push(entry)
       else hitters.push(entry)
