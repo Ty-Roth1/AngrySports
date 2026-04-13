@@ -6,6 +6,11 @@ body {
   touch-action: manipulation;
 }
 
+/* Slightly smaller base font on mobile to reduce clutter */
+@media (max-width: 767px) {
+  html { font-size: 14px; }
+}
+
 /* Safe area helpers for iOS notch / Dynamic Island / home indicator */
 .pt-safe  { padding-top:    env(safe-area-inset-top);    }
 .pb-safe  { padding-bottom: env(safe-area-inset-bottom); }
