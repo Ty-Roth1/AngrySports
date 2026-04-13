@@ -242,7 +242,6 @@ export function RosterGrid({
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [pendingId,  setPendingId]  = useState<string | null>(null)
-  const [droppingId, setDroppingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [view, setView] = useState<'roster' | 'payroll' | 'history'>('roster')
 
@@ -276,20 +275,6 @@ export function RosterGrid({
     setPendingId(null)
   }
 
-  async function dropPlayer(playerId: string, name: string) {
-    if (!confirm(`Drop ${name}? This cannot be undone.`)) return
-    setDroppingId(playerId)
-    setError(null)
-    const res = await fetch(`/api/leagues/${leagueId}/roster/drop`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ player_id: playerId }),
-    })
-    const data = await res.json()
-    if (!res.ok) setError(data.error)
-    else startTransition(() => router.refresh())
-    setDroppingId(null)
-  }
 
   if (players.length === 0) {
     return (
@@ -376,8 +361,8 @@ export function RosterGrid({
           slots={slots} settings={settings}
           isContractLeague={isContractLeague} contracts={contracts}
           weekScores={weekScores} todayScores={todayScores}
-          pendingId={pendingId} droppingId={droppingId}
-          onChangeSlot={changeSlot} onDrop={dropPlayer}
+          pendingId={pendingId}
+          onChangeSlot={changeSlot}
           selectedDate={displayDate} isReadOnly={isReadOnly}
           liveTeams={liveTeams} probableStarterIds={probableStarterIds}
         />
@@ -412,7 +397,7 @@ export function RosterGrid({
 
 function RosterView({
   slots, settings, isContractLeague, contracts, weekScores, todayScores,
-  pendingId, droppingId, onChangeSlot, onDrop, selectedDate, isReadOnly,
+  pendingId, onChangeSlot, selectedDate, isReadOnly,
   liveTeams, probableStarterIds, isToday,
 }: {
   slots: RosterSlot[]
@@ -422,9 +407,9 @@ function RosterView({
   weekScores: Record<string, WeekScore>
   todayScores: Record<string, WeekScore>
   pendingId: string | null
-  droppingId: string | null
+
   onChangeSlot: (id: string, slot: string) => void
-  onDrop: (playerId: string, name: string) => void
+
   selectedDate?: string
   isReadOnly?: boolean
   liveTeams?: string[]
@@ -441,7 +426,7 @@ function RosterView({
 
   function SlotRow({ slot }: { slot: RosterSlot }) {
     const p        = slot.player
-    const dropping = p ? droppingId === p.player_id : false
+    const dropping = false
     const loading  = p ? pendingId  === p.roster_id  : false
     const week     = p ? weekScores[p.player_id]  : null
     const dayScore = p ? todayScores[p.player_id] : null
@@ -555,9 +540,9 @@ function RosterView({
           </td>
         )}
 
-        {/* Slot selector — desktop only */}
+        {/* Slot selector */}
         {!isReadOnly && (
-          <td className="hidden md:table-cell px-2 py-2 w-32">
+          <td className="px-2 py-2 w-32">
             {p && (
               <select
                 value={p.slot_type}
@@ -569,21 +554,6 @@ function RosterView({
                   <option key={s} value={s}>{SLOT_LABELS[s] ?? s}</option>
                 ))}
               </select>
-            )}
-          </td>
-        )}
-
-        {/* Drop */}
-        {!isReadOnly && (
-          <td className="px-2 py-2 text-right w-12">
-            {p && (
-              <button
-                onClick={() => onDrop(p.player_id, p.full_name)}
-                disabled={dropping}
-                className="text-xs text-gray-500 hover:text-red-400 transition-colors disabled:opacity-40"
-              >
-                {dropping ? '…' : 'Drop'}
-              </button>
             )}
           </td>
         )}
@@ -609,8 +579,7 @@ function RosterView({
               <th className="text-left px-2 py-2">Player</th>
               <th className="text-right px-2 py-2 w-32">Pts</th>
               {isContractLeague && <th className="text-right px-2 py-2 w-16">AAV</th>}
-              {!isReadOnly && <th className="hidden md:table-cell text-left px-2 py-2 w-32">Move to</th>}
-              {!isReadOnly && <th className="px-2 py-2 w-12" />}
+              {!isReadOnly && <th className="text-left px-2 py-2 w-32">Move to</th>}
             </tr>
           </thead>
           <tbody>

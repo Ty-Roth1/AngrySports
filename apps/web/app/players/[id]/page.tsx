@@ -10,6 +10,7 @@ import { FantasyStatsPanel } from '@/components/player/FantasyStatsPanel'
 import { BackButton } from '@/components/BackButton'
 import { NicknameEditor } from '@/components/player/NicknameEditor'
 import { PlayerClaimButton } from '@/components/player/PlayerClaimButton'
+import { PlayerDropButton } from '@/components/player/PlayerDropButton'
 import Image from 'next/image'
 
 export default async function PlayerPage({
@@ -50,13 +51,15 @@ export default async function PlayerPage({
   const canEditContract = user && contract &&
     (user.id === (contract.fantasy_teams as any)?.owner_id)
 
-  // Find the current user's roster entry for this player (for nickname editing)
+  // Find the current user's roster entry for this player (for nickname editing + drop)
   const { data: myRosterEntry } = user ? await supabase
     .from('rosters')
-    .select('id, nickname, fantasy_teams!inner(owner_id)')
+    .select('id, nickname, fantasy_teams!inner(id, owner_id, league_id)')
     .eq('player_id', id)
     .eq('fantasy_teams.owner_id', user.id)
     .maybeSingle() : { data: null }
+
+  const myRosterTeam = myRosterEntry ? (myRosterEntry.fantasy_teams as any) : null
 
   // Get fantasy team history (all rosters this player has been on)
   const { data: rosterHistory } = await supabase
@@ -283,6 +286,13 @@ export default async function PlayerPage({
               isFaab={leagueContext.isFaab}
               isOpenFa={leagueContext.isOpenFa}
               faabRemaining={leagueContext.faabRemaining}
+            />
+          )}
+          {myRosterTeam && (
+            <PlayerDropButton
+              leagueId={myRosterTeam.league_id}
+              playerId={id}
+              playerName={player.full_name}
             />
           )}
         </div>
