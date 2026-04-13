@@ -462,12 +462,12 @@ function RosterView({
     return (
       <tr className={`border-b border-gray-800 last:border-0 transition-colors ${isLive ? 'bg-green-950/40 hover:bg-green-950/60' : p ? 'hover:bg-gray-800/30' : ''}`}>
         {/* Slot label */}
-        <td className="px-1 py-2 w-7">
-          <span className="text-xs font-mono font-bold text-gray-500">{slot.label}</span>
+        <td className="pr-0.5 pl-1 py-2 w-6">
+          <span className="text-[10px] font-mono font-bold text-gray-500">{slot.label}</span>
         </td>
 
         {/* Player: headshot + name + status inline */}
-        <td className="pl-1 pr-2 py-1.5">
+        <td className="pl-0.5 pr-2 py-1.5">
           {p ? (
             <div className="flex items-center gap-2">
               <div className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
