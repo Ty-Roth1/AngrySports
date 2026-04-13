@@ -555,9 +555,9 @@ function RosterView({
           </td>
         )}
 
-        {/* Slot selector */}
+        {/* Slot selector — desktop only */}
         {!isReadOnly && (
-          <td className="px-2 py-2 w-32">
+          <td className="hidden md:table-cell px-2 py-2 w-32">
             {p && (
               <select
                 value={p.slot_type}
@@ -601,6 +601,7 @@ function RosterView({
             <span className="ml-2 text-xs text-gray-400 font-normal">— {subtitle}</span>
           </h3>
         </div>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm text-white">
           <thead>
             <tr className="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-800">
@@ -608,7 +609,7 @@ function RosterView({
               <th className="text-left px-2 py-2">Player</th>
               <th className="text-right px-2 py-2 w-32">Pts</th>
               {isContractLeague && <th className="text-right px-2 py-2 w-16">AAV</th>}
-              {!isReadOnly && <th className="text-left px-2 py-2 w-32">Move to</th>}
+              {!isReadOnly && <th className="hidden md:table-cell text-left px-2 py-2 w-32">Move to</th>}
               {!isReadOnly && <th className="px-2 py-2 w-12" />}
             </tr>
           </thead>
@@ -616,6 +617,7 @@ function RosterView({
             {rows.map((slot, i) => <SlotRow key={`${slot.slot_type}-${i}`} slot={slot} />)}
           </tbody>
         </table>
+        </div>
       </div>
     )
   }
