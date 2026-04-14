@@ -4,17 +4,9 @@ import Link from 'next/link'
 import { LeagueNav } from '@/components/league/LeagueNav'
 import { LiveMatchup } from '@/components/league/LiveMatchup'
 
-// Snap any date string to its Monday and the Sunday 6 days later
-function snapToMonSun(periodStart: string): { mon: string; sun: string; label: string } {
-  const d = new Date(periodStart + 'T12:00:00Z')
-  const dow = d.getUTCDay() // 0=Sun
-  const daysBack = dow === 0 ? 6 : dow - 1
-  const mon = new Date(d)
-  mon.setUTCDate(d.getUTCDate() - daysBack)
-  const sun = new Date(mon)
-  sun.setUTCDate(mon.getUTCDate() + 6)
-  const fmt = (dt: Date) => `${dt.getUTCMonth() + 1}/${dt.getUTCDate()}`
-  return { mon: fmt(mon), sun: fmt(sun), label: `${fmt(mon)} – ${fmt(sun)}` }
+function fmtDate(d: string) {
+  const [, m, day] = d.split('-')
+  return `${parseInt(m)}/${parseInt(day)}`
 }
 
 export default async function MatchupPage({
@@ -104,7 +96,9 @@ export default async function MatchupPage({
   const minWeek = weekMeta[0]?.week ?? 1
   const maxWeek = weekMeta[weekMeta.length - 1]?.week ?? 1
 
-  const dateRange = selectedMeta ? snapToMonSun(selectedMeta.period_start) : null
+  const dateRange = selectedMeta
+    ? `${fmtDate(selectedMeta.period_start)} – ${fmtDate(selectedMeta.period_end)}`
+    : null
 
   // Fetch all matchups for the selected week
   const { data: weekMatchups } = await supabase
@@ -179,7 +173,7 @@ export default async function MatchupPage({
 
         <div className="text-center">
           <p className="text-white font-semibold">Week {selectedWeek}</p>
-          {dateRange && <p className="text-xs text-gray-500 mt-0.5">{dateRange.label}</p>}
+          {dateRange && <p className="text-xs text-gray-500 mt-0.5">{dateRange}</p>}
         </div>
 
         {selectedWeek < maxWeek ? (
