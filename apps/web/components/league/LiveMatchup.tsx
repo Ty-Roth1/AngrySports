@@ -4,6 +4,18 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
+function snapToMonSun(periodStart: string): string {
+  const d = new Date(periodStart + 'T12:00:00Z')
+  const dow = d.getUTCDay()
+  const daysBack = dow === 0 ? 6 : dow - 1
+  const mon = new Date(d)
+  mon.setUTCDate(d.getUTCDate() - daysBack)
+  const sun = new Date(mon)
+  sun.setUTCDate(mon.getUTCDate() + 6)
+  const fmt = (dt: Date) => `${dt.getUTCMonth() + 1}/${dt.getUTCDate()}`
+  return `${fmt(mon)} – ${fmt(sun)}`
+}
+
 interface Team {
   id: string
   name: string
@@ -130,7 +142,7 @@ export function LiveMatchup({
     <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
       <div className="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
         <span className="text-sm font-medium text-gray-400">
-          Week {week} · {periodStart} — {periodEnd}
+          Week {week} · {snapToMonSun(periodStart)}
           {isPlayoff && <span className="ml-2 text-yellow-400">Playoffs</span>}
         </span>
         <div className="flex items-center gap-2">
