@@ -593,8 +593,8 @@ function RosterView({
 
   return (
     <div className="space-y-4">
-      <Section rows={activeSlots}   label="Active Lineup"           subtitle="these players score points" />
-      <Section rows={inactiveSlots} label="Bench / IL / Taxi / NA"  subtitle="these players do not score" />
+      <Section rows={activeSlots}   label="Active Lineup"           subtitle="" />
+      <Section rows={inactiveSlots} label="Bench / IL / Taxi / NA"  subtitle="" />
     </div>
   )
 }
