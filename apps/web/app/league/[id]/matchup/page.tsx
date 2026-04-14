@@ -192,6 +192,7 @@ export default async function MatchupPage({
       {/* My matchup */}
       {myMatchup ? (
         <LiveMatchup
+          key={myMatchup.id}
           matchupId={myMatchup.id}
           leagueId={leagueId}
           myTeamId={myTeam.id}
