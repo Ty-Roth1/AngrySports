@@ -568,7 +568,9 @@ function RosterView({
         <div className="px-4 py-2.5 border-b border-gray-800 bg-gray-800/40">
           <h3 className="font-semibold text-sm text-white">
             {label}
-            <span className="ml-2 text-xs text-gray-400 font-normal">— {subtitle}</span>
+            {subtitle && (
+              <span className="ml-2 text-xs text-gray-400 font-normal">— {subtitle}</span>
+            )}
           </h3>
         </div>
         <div className="overflow-x-auto">
