@@ -79,18 +79,24 @@ export default async function MatchupPage({
     .eq('season_year', league.season_year)
     .order('week')
 
-  const weekMeta = Array.from(
-    new Map(
-      (allWeekRows ?? []).map(r => [r.week, { week: r.week, period_start: r.period_start, period_end: r.period_end, status: r.status }])
-    ).values()
-  ).sort((a, b) => a.week - b.week)
+  // Build week meta, tracking whether ANY matchup in the week is active
+  const weekMap = new Map<number, { week: number; period_start: string; period_end: string; anyActive: boolean }>()
+  for (const r of allWeekRows ?? []) {
+    const ex = weekMap.get(r.week)
+    if (!ex) {
+      weekMap.set(r.week, { week: r.week, period_start: r.period_start, period_end: r.period_end, anyActive: r.status === 'active' })
+    } else {
+      weekMap.set(r.week, { ...ex, anyActive: ex.anyActive || r.status === 'active' })
+    }
+  }
+  const weekMeta = Array.from(weekMap.values()).sort((a, b) => a.week - b.week)
 
-  // Determine current week: prefer active status → contains today → latest started
+  // Determine current week: any active → contains today → latest with period_start ≤ today → last week overall
   const currentWeek =
-    weekMeta.find(w => w.status === 'active')?.week ??
+    weekMeta.find(w => w.anyActive)?.week ??
     weekMeta.find(w => w.period_start <= today && w.period_end >= today)?.week ??
-    weekMeta.filter(w => w.period_start <= today).pop()?.week ??
-    weekMeta[0]?.week ??
+    [...weekMeta].reverse().find(w => w.period_start <= today)?.week ??
+    weekMeta[weekMeta.length - 1]?.week ??
     1
 
   const selectedWeek = weekParam ? parseInt(weekParam) : currentWeek
