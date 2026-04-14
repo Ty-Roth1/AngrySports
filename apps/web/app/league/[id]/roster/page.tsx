@@ -234,12 +234,6 @@ export default async function RosterPage({
               </p>
             )}
           </div>
-          <Link
-            href={`/league/${leagueId}/waivers`}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors text-white"
-          >
-            Add Player
-          </Link>
         </div>
       </div>
 
