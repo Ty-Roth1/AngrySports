@@ -59,13 +59,27 @@ export async function POST(
   const scheduleWeeksToInsert = []
   const matchupsToInsert = []
 
-  const startDate = new Date(start_date + 'T00:00:00')
+  // Use noon UTC to avoid any timezone-induced date shifts
+  const startDate = new Date(start_date + 'T12:00:00Z')
+
+  // Week 1 ends on the Sunday of the start week (may be a short week)
+  const dow = startDate.getUTCDay() // 0=Sun,1=Mon,...,6=Sat
+  const daysToSunday = dow === 0 ? 0 : 7 - dow
+  const week1End = new Date(startDate)
+  week1End.setUTCDate(startDate.getUTCDate() + daysToSunday)
 
   for (let week = 1; week <= totalWeeks; week++) {
-    const weekStart = new Date(startDate)
-    weekStart.setDate(startDate.getDate() + (week - 1) * 7)
-    const weekEnd = new Date(weekStart)
-    weekEnd.setDate(weekStart.getDate() + 6)
+    let weekStart: Date, weekEnd: Date
+    if (week === 1) {
+      weekStart = startDate
+      weekEnd = week1End
+    } else {
+      // Week 2 starts the Monday after week 1 ends, each subsequent week is +7 days
+      weekStart = new Date(week1End)
+      weekStart.setUTCDate(week1End.getUTCDate() + (week - 2) * 7 + 1)
+      weekEnd = new Date(weekStart)
+      weekEnd.setUTCDate(weekStart.getUTCDate() + 6)
+    }
 
     const isPlayoff = week > regularWeeks
     const periodStart = weekStart.toISOString().split('T')[0]
