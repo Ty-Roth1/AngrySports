@@ -526,19 +526,6 @@ function RosterView({
           ) : null}
         </td>
 
-        {/* Salary */}
-        {isContractLeague && (
-          <td className="px-2 py-2 text-right w-16">
-            {contract ? (
-              <>
-                <span className="text-sm text-green-400 font-medium">${contract.salary}</span>
-                <p className="text-xs text-gray-600">{contract.years_remaining}yr</p>
-              </>
-            ) : p ? (
-              <span className="text-xs text-gray-700">—</span>
-            ) : null}
-          </td>
-        )}
 
         {/* Slot selector */}
         {!isReadOnly && (
@@ -580,7 +567,6 @@ function RosterView({
               <th className="text-left px-1 py-2 w-7">Slot</th>
               <th className="text-left px-2 py-2">Player</th>
               <th className="text-right px-2 py-2 w-32">Pts</th>
-              {isContractLeague && <th className="text-right px-2 py-2 w-16">AAV</th>}
               {!isReadOnly && <th className="text-left px-2 py-2 w-32">Move to</th>}
             </tr>
           </thead>
