@@ -25,6 +25,8 @@ const config: CapacitorConfig = {
     allowsLinkPreview: false,
     // Required for Supabase Auth redirects (magic link / OAuth)
     scheme: 'twelvam',
+    // Disable automatic font scaling on older devices
+    limitsNavigationsToAppBoundDomains: true,
   },
 
   plugins: {

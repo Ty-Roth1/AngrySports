@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+html {
+  /* Prevent iOS from auto-scaling text on older devices */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   font-family: Arial, Helvetica, sans-serif;
   /* Prevent double-tap zoom on mobile */
