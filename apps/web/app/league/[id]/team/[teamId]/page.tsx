@@ -114,8 +114,8 @@ export default async function TeamRosterPage({
     }
   }
 
-  // Fetch live games, probable starters, and team history in parallel
-  const [liveGamesRes, probableRes, historyRes] = await Promise.all([
+  // Fetch live games, probable starters, team history, and dead money in parallel
+  const [liveGamesRes, probableRes, historyRes, deadMoneyRes] = await Promise.all([
     fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=team`, { next: { revalidate: 120 } }),
     supabase
       .from('pitcher_probable_starts')
@@ -127,8 +127,15 @@ export default async function TeamRosterPage({
       .select('id, season_year, is_champion, finish_place, awards, notes')
       .eq('team_id', teamId)
       .order('season_year', { ascending: false }),
+    supabase
+      .from('dead_money')
+      .select('id, player_name, original_salary, dead_salary_per_year, years_remaining_at_cut, season_year_cut, expires_after_season, cut_at')
+      .eq('league_id', leagueId)
+      .eq('team_id', teamId)
+      .order('cut_at', { ascending: false }),
   ])
   const historyRecords = (historyRes.data ?? []) as any[]
+  const deadMoneyRecords = (deadMoneyRes.data ?? []) as any[]
 
   const liveTeams: string[] = []
   if (liveGamesRes.ok) {
@@ -254,6 +261,7 @@ export default async function TeamRosterPage({
         liveTeams={liveTeams}
         probableStarterIds={probableStarterIds}
         historyRecords={historyRecords}
+        deadMoneyRecords={deadMoneyRecords}
       />
     </div>
   )

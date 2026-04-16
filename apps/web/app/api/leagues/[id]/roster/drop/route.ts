@@ -62,6 +62,15 @@ export async function POST(
 
   if (dropError) return NextResponse.json({ error: dropError.message }, { status: 500 })
 
+  // Fetch active contract before voiding (needed for dead money check)
+  const { data: activeContract } = await supabase
+    .from('contracts')
+    .select('id, salary, years_remaining, expires_after_season, team_id')
+    .eq('league_id', leagueId)
+    .eq('player_id', player_id)
+    .is('voided_at', null)
+    .single()
+
   // Void any active contract for this player in this league
   await supabase
     .from('contracts')
@@ -69,6 +78,29 @@ export async function POST(
     .eq('league_id', leagueId)
     .eq('player_id', player_id)
     .is('voided_at', null)
+
+  // Create dead money record if AAV >= $5M
+  if (activeContract && Number(activeContract.salary) >= 5 && activeContract.years_remaining > 0) {
+    // Look up player name for the dead money record
+    const { data: playerRow } = await supabase
+      .from('players')
+      .select('full_name')
+      .eq('id', player_id)
+      .single()
+
+    const seasonYear = new Date().getFullYear()
+    await supabase.from('dead_money').insert({
+      league_id: leagueId,
+      team_id: teamId,
+      player_id,
+      player_name: playerRow?.full_name ?? 'Unknown Player',
+      original_salary: activeContract.salary,
+      dead_salary_per_year: Number(activeContract.salary) / 2,
+      years_remaining_at_cut: activeContract.years_remaining,
+      season_year_cut: seasonYear,
+      expires_after_season: activeContract.expires_after_season,
+    })
+  }
 
   // Record transaction
   const { data: txn } = await supabase

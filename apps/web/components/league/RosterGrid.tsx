@@ -216,13 +216,24 @@ function formatStatline(b: Record<string, number> | null, p: Record<string, numb
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+export interface DeadMoneyRecord {
+  id: string
+  player_name: string
+  original_salary: number
+  dead_salary_per_year: number
+  years_remaining_at_cut: number
+  season_year_cut: number
+  expires_after_season: number
+  cut_at: string
+}
+
 export function RosterGrid({
   players, leagueId, teamId, settings,
   isContractLeague = false, contracts = {},
   weekScores = {}, todayScores = {}, seasonYear,
   selectedDate, matchupPeriod, isReadOnly = false,
   liveTeams = [], probableStarterIds = [],
-  historyRecords = [],
+  historyRecords = [], deadMoneyRecords = [],
 }: {
   players: RosterPlayer[]
   leagueId: string
@@ -239,6 +250,7 @@ export function RosterGrid({
   liveTeams?: string[]
   probableStarterIds?: string[]
   historyRecords?: SeasonRecord[]
+  deadMoneyRecords?: DeadMoneyRecord[]
 }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -375,6 +387,7 @@ export function RosterGrid({
           leagueId={leagueId} teamId={teamId}
           onSaved={() => startTransition(() => router.refresh())}
           isReadOnly={isReadOnly}
+          deadMoneyRecords={deadMoneyRecords}
         />
       )}
       {view === 'history' && (
@@ -624,6 +637,7 @@ const BLANK_CONTRACT: Omit<ContractInfo, 'id'> = {
 
 function PayrollView({
   players, contracts, seasonYear, leagueId, teamId, onSaved, isReadOnly = false,
+  deadMoneyRecords = [],
 }: {
   players: RosterPlayer[]
   contracts: Record<string, ContractInfo>
@@ -632,6 +646,7 @@ function PayrollView({
   teamId: string
   onSaved: () => void
   isReadOnly?: boolean
+  deadMoneyRecords?: DeadMoneyRecord[]
 }) {
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
   const [form, setForm] = useState<Omit<ContractInfo, 'id'>>(BLANK_CONTRACT)
@@ -694,9 +709,18 @@ function PayrollView({
     return Number(c.salary)
   }
 
-  const yearTotals = years.map(y =>
+  function deadMoneyForYear(dm: DeadMoneyRecord, year: number): number {
+    if (year < dm.season_year_cut || year > dm.expires_after_season) return 0
+    return Number(dm.dead_salary_per_year)
+  }
+
+  const activePayrollTotals = years.map(y =>
     sorted.reduce((sum, p) => sum + (salaryForYear(contracts[p.player_id], y) ?? 0), 0)
   )
+  const deadMoneyTotals = years.map(y =>
+    deadMoneyRecords.reduce((sum, dm) => sum + deadMoneyForYear(dm, y), 0)
+  )
+  const yearTotals = years.map((_, i) => activePayrollTotals[i] + deadMoneyTotals[i])
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
@@ -832,6 +856,28 @@ function PayrollView({
             })}
           </tbody>
           <tfoot>
+            {deadMoneyRecords.length > 0 && (
+              <tr className="border-t border-gray-800 bg-gray-800/20">
+                <td colSpan={3} className="px-4 py-2 text-xs text-gray-500">Active Contracts</td>
+                {activePayrollTotals.map((total, i) => (
+                  <td key={i} className="px-4 py-2 text-right text-xs text-gray-500">
+                    {total > 0 ? fmtM(total) : <span className="text-gray-700">—</span>}
+                  </td>
+                ))}
+                {!isReadOnly && <td className="px-4 py-2" />}
+              </tr>
+            )}
+            {deadMoneyRecords.length > 0 && (
+              <tr className="border-b border-gray-800 bg-gray-800/20">
+                <td colSpan={3} className="px-4 py-2 text-xs text-orange-500/80">Dead Money</td>
+                {deadMoneyTotals.map((total, i) => (
+                  <td key={i} className="px-4 py-2 text-right text-xs text-orange-500/80">
+                    {total > 0 ? fmtM(total) : <span className="text-gray-700">—</span>}
+                  </td>
+                ))}
+                {!isReadOnly && <td className="px-4 py-2" />}
+              </tr>
+            )}
             <tr className="border-t border-gray-700 bg-gray-800/40">
               <td colSpan={3} className="px-4 py-3 text-sm font-bold text-white">Total Payroll</td>
               {yearTotals.map((total, i) => {
@@ -849,6 +895,42 @@ function PayrollView({
           </tfoot>
         </table>
       </div>
+
+      {/* Dead money table — cut players */}
+      {deadMoneyRecords.length > 0 && (
+        <div className="border-t border-gray-800">
+          <div className="px-4 py-2.5 bg-gray-800/40">
+            <h4 className="text-sm font-semibold text-orange-400">Dead Money — Cut Players</h4>
+            <p className="text-xs text-gray-500 mt-0.5">Half of remaining contract owed each year through expiration.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-white">
+              <thead>
+                <tr className="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-800">
+                  <th className="text-left px-4 py-2.5">Player</th>
+                  <th className="text-left px-4 py-2.5 w-20">Cut</th>
+                  <th className="text-right px-4 py-2.5 w-24">Original AAV</th>
+                  <th className="text-right px-4 py-2.5 w-24">Dead/Yr</th>
+                  <th className="text-right px-4 py-2.5 w-20">Expires</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deadMoneyRecords.map(dm => (
+                  <tr key={dm.id} className="border-b border-gray-800 hover:bg-gray-800/20">
+                    <td className="px-4 py-2.5 font-medium text-gray-300">{dm.player_name}</td>
+                    <td className="px-4 py-2.5 text-xs text-gray-500">
+                      {new Date(dm.cut_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-gray-400">{fmtM(dm.original_salary)}</td>
+                    <td className="px-4 py-2.5 text-right text-orange-400 font-medium">{fmtM(dm.dead_salary_per_year)}</td>
+                    <td className="px-4 py-2.5 text-right text-gray-500">{dm.expires_after_season}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Tax penalty banner — shown when current season payroll hits a tier */}
       {(() => {

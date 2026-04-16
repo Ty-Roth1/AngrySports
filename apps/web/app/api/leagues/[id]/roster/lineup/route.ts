@@ -51,18 +51,19 @@ export async function PATCH(
     if (!isCommish) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Fetch league settings for slot eligibility
-  const { data: settings } = await supabase
-    .from('league_settings')
-    .select('spots_if, spots_util, spots_p')
-    .eq('league_id', leagueId)
-    .single()
-
-  const { data: leagueRow } = await supabase
-    .from('leagues')
-    .select('has_taxi_squad')
-    .eq('id', leagueId)
-    .single()
+  // Fetch league settings for slot eligibility + capacity
+  const [{ data: settings }, { data: leagueRow }] = await Promise.all([
+    supabase
+      .from('league_settings')
+      .select('spots_c, spots_1b, spots_2b, spots_3b, spots_ss, spots_if, spots_of, spots_util, spots_sp, spots_rp, spots_p')
+      .eq('league_id', leagueId)
+      .single(),
+    supabase
+      .from('leagues')
+      .select('has_taxi_squad')
+      .eq('id', leagueId)
+      .single(),
+  ])
 
   const playerData = entry.players as any
   const position = playerData.primary_position as string
@@ -87,6 +88,43 @@ export async function PATCH(
       { error: `${position} cannot be placed in the ${slot_type} slot` },
       { status: 422 }
     )
+  }
+
+  // For fixed-capacity active slots, check if the slot is already full.
+  // If so, displace one occupant to BENCH before moving the new player in.
+  const SLOT_CAPACITY: Record<string, number> = {
+    C:    settings?.spots_c    ?? 1,
+    '1B': settings?.spots_1b   ?? 1,
+    '2B': settings?.spots_2b   ?? 1,
+    '3B': settings?.spots_3b   ?? 1,
+    SS:   settings?.spots_ss   ?? 1,
+    IF:   settings?.spots_if   ?? 0,
+    OF:   settings?.spots_of   ?? 3,
+    UTIL: settings?.spots_util ?? 1,
+    SP:   settings?.spots_sp   ?? 2,
+    RP:   settings?.spots_rp   ?? 2,
+    P:    settings?.spots_p    ?? 0,
+  }
+
+  const capacity = SLOT_CAPACITY[slot_type]
+  if (capacity !== undefined && capacity > 0) {
+    // Count players already in this slot (excluding the player being moved)
+    const { data: occupants } = await supabase
+      .from('rosters')
+      .select('id')
+      .eq('team_id', entry.team_id)
+      .eq('slot_type', slot_type)
+      .neq('id', roster_id)
+
+    if (occupants && occupants.length >= capacity) {
+      // Displace the first occupant to BENCH
+      const { error: displaceError } = await supabase
+        .from('rosters')
+        .update({ slot_type: 'BENCH' })
+        .eq('id', occupants[0].id)
+
+      if (displaceError) return NextResponse.json({ error: displaceError.message }, { status: 500 })
+    }
   }
 
   const { error } = await supabase
