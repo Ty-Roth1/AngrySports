@@ -501,25 +501,30 @@ function RosterView({
           )}
         </td>
 
-        {/* Pts: week total + today's pts + statline */}
+        {/* Pts: today prominent, week total secondary */}
         <td className="px-2 py-2 text-right w-32">
-          {week ? (
+          {week || dayScore ? (
             <div>
-              <div className="flex items-baseline justify-end gap-2">
-                <span className="text-xs text-gray-500">Wk</span>
-                <span className="text-sm font-semibold text-white">
-                  {week.fantasy_points > 0 ? `+${week.fantasy_points.toFixed(1)}` : '0'}
-                </span>
-              </div>
-              {dayScore && (
-                <div className="flex items-baseline justify-end gap-1 mt-0.5">
-                  <span className="text-xs text-gray-600">{dayLabel}</span>
-                  <span className="text-xs font-medium text-gray-300">
+              {/* Daily score + statline — primary */}
+              {dayScore ? (
+                <>
+                  <span className="text-sm font-semibold text-white">
                     {dayScore.fantasy_points > 0 ? `+${dayScore.fantasy_points.toFixed(1)}` : '0'}
+                  </span>
+                  {todayLine && <p className="text-xs text-gray-500 mt-0.5">{todayLine}</p>}
+                </>
+              ) : (
+                <span className="text-sm font-semibold text-gray-600">—</span>
+              )}
+              {/* Weekly total — secondary */}
+              {week && (
+                <div className="flex items-baseline justify-end gap-1 mt-0.5">
+                  <span className="text-xs text-gray-600">Wk</span>
+                  <span className="text-xs text-gray-500">
+                    {week.fantasy_points > 0 ? `+${week.fantasy_points.toFixed(1)}` : '0'}
                   </span>
                 </div>
               )}
-              {todayLine && <p className="text-xs text-gray-500 mt-0.5">{todayLine}</p>}
             </div>
           ) : p ? (
             <span className="text-xs text-gray-700">—</span>
