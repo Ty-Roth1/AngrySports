@@ -243,10 +243,52 @@ export async function POST(request: Request) {
     // Update matchup scores
     const homeScore = teamTotals[matchup.home_team_id] ?? 0
     const awayScore = teamTotals[matchup.away_team_id] ?? 0
+    const roundedHome = Math.round(homeScore * 100) / 100
+    const roundedAway = Math.round(awayScore * 100) / 100
+
+    // Mark active if the date falls within this matchup's period
+    const isWithinPeriod = date >= matchup.period_start && date <= matchup.period_end
+    const isAfterPeriod = date > matchup.period_end
+    const newStatus = isAfterPeriod ? 'final' : isWithinPeriod ? 'active' : matchup.status
+
     await supabase.from('matchups').update({
-      home_score: Math.round(homeScore * 100) / 100,
-      away_score: Math.round(awayScore * 100) / 100,
+      home_score: roundedHome,
+      away_score: roundedAway,
+      status: newStatus,
     }).eq('id', matchup.id)
+
+    // Update fantasy_teams wins/losses/ties/points_for from all final matchups
+    if (newStatus === 'final' || newStatus === 'active') {
+      const teamsToUpdate = [
+        { id: matchup.home_team_id, score: roundedHome, oppScore: roundedAway },
+        { id: matchup.away_team_id, score: roundedAway, oppScore: roundedHome },
+      ]
+      for (const t of teamsToUpdate) {
+        // Recompute totals from all matchups for this team
+        const { data: allMatchups } = await supabase
+          .from('matchups')
+          .select('home_team_id, away_team_id, home_score, away_score, status')
+          .or(`home_team_id.eq.${t.id},away_team_id.eq.${t.id}`)
+          .in('status', ['final', 'active'])
+
+        let wins = 0, losses = 0, ties = 0, pointsFor = 0
+        for (const m of allMatchups ?? []) {
+          const myScore = m.home_team_id === t.id ? Number(m.home_score) : Number(m.away_score)
+          const oppScore = m.home_team_id === t.id ? Number(m.away_score) : Number(m.home_score)
+          pointsFor += myScore
+          if (m.status === 'final') {
+            if (myScore > oppScore) wins++
+            else if (myScore < oppScore) losses++
+            else ties++
+          }
+        }
+
+        await supabase.from('fantasy_teams').update({
+          wins, losses, ties,
+          points_for: Math.round(pointsFor * 100) / 100,
+        }).eq('id', t.id)
+      }
+    }
   }
 
   return NextResponse.json({
