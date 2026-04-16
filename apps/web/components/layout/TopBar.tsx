@@ -36,14 +36,32 @@ export function TopBar({ profile }: TopBarProps) {
     router.refresh()
   }
 
+  // Show a back button on detail pages that aren't reachable from the bottom nav
+  const isDetailPage =
+    /^\/players\/[^/]+/.test(pathname) ||           // player detail
+    /^\/league\/[^/]+\/team\//.test(pathname) ||    // team page
+    /^\/league\/[^/]+\/trades\/[^/]+/.test(pathname) || // trade detail
+    pathname === '/account' ||
+    pathname === '/settings'
+
   return (
     <header className="h-14 border-b border-gray-800 bg-gray-900 flex-shrink-0 grid grid-cols-3 items-center px-6">
 
-      {/* Left: league name when inside a league */}
+      {/* Left: back button on detail pages, league name otherwise */}
       <div className="flex items-center gap-2">
-        {leagueName && (
+        {isDetailPage ? (
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+        ) : leagueName ? (
           <span className="text-sm text-gray-400 truncate">{leagueName}</span>
-        )}
+        ) : null}
       </div>
 
       {/* Center: brand logo */}
