@@ -173,7 +173,7 @@ export default async function RosterPage({
       mlb_team: p.mlb_team,
       eligible_positions: p.eligible_positions ?? [],
       status: p.status,
-      slot_type: r.slot_type,
+      slot_type: r.slot_type ?? 'BENCH',
       is_rookie: p.is_rookie,
       is_second_year: p.is_second_year ?? false,
       nickname: r.nickname ?? null,

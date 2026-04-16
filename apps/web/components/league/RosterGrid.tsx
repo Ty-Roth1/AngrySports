@@ -116,8 +116,9 @@ function formatEligiblePositions(primary: string, eligible?: string[]): string {
 function buildRosterSlots(players: RosterPlayer[], s: FullSettings): RosterSlot[] {
   const bySlot: Record<string, RosterPlayer[]> = {}
   for (const p of players) {
-    if (!bySlot[p.slot_type]) bySlot[p.slot_type] = []
-    bySlot[p.slot_type].push(p)
+    const slot = p.slot_type ?? 'BENCH'
+    if (!bySlot[slot]) bySlot[slot] = []
+    bySlot[slot].push(p)
   }
 
   const used: Record<string, number> = {}
