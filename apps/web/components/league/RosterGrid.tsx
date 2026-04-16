@@ -552,9 +552,10 @@ function RosterView({
             {p && (
               <select
                 value={p.slot_type}
-                disabled={loading}
+                disabled={loading || isLive}
                 onChange={e => onChangeSlot(p.roster_id, e.target.value)}
-                className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-red-500 disabled:opacity-50 w-full"
+                title={isLive ? 'Cannot move while game is live' : undefined}
+                className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-red-500 disabled:opacity-50 disabled:cursor-not-allowed w-full"
               >
                 {eligible.map(s => (
                   <option key={s} value={s}>{SLOT_LABELS[s] ?? s}</option>

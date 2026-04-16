@@ -6,7 +6,6 @@ import { LeagueNav } from '@/components/league/LeagueNav'
 import { AutoSync } from '@/components/AutoSync'
 import { TeamNameEditor } from '@/components/league/TeamNameEditor'
 import { TeamLogo } from '@/components/league/TeamLogoUpload'
-import { isActiveSlot } from '@/lib/scoring'
 
 export default async function RosterPage({
   params,
@@ -191,12 +190,11 @@ export default async function RosterPage({
   const settings = (league.league_settings as any) ?? {}
 
   // Compute today's and this week's points (active slot players only)
-  const todayTotal = players
-    .filter(p => isActiveSlot(p.slot_type))
-    .reduce((sum, p) => sum + (todayScores[p.player_id]?.fantasy_points ?? 0), 0)
-  const weekTotal = players
-    .filter(p => isActiveSlot(p.slot_type))
-    .reduce((sum, p) => sum + (weekScores[p.player_id]?.fantasy_points ?? 0), 0)
+  // Sum all scored points regardless of current slot — player_game_scores are only
+  // written during sync when the player was in an active slot, so no slot filter needed.
+  // Filtering by current slot causes points to vanish when players are moved mid-week.
+  const todayTotal = Object.values(todayScores).reduce((sum, s) => sum + s.fantasy_points, 0)
+  const weekTotal  = Object.values(weekScores).reduce((sum, s) => sum + s.fantasy_points, 0)
   const isViewingToday = selectedDate === today
 
   return (
