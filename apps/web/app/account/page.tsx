@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function AccountPage() {
+  const router = useRouter()
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -11,8 +13,25 @@ export default function AccountPage() {
   const [nameLoading, setNameLoading] = useState(false)
   const [pwMsg, setPwMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [nameMsg, setNameMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const supabase = createClient()
+
+  async function handleDeleteAccount() {
+    setDeleteLoading(true)
+    setDeleteError(null)
+    const res = await fetch('/api/account/delete', { method: 'DELETE' })
+    const data = await res.json()
+    if (!res.ok) {
+      setDeleteError(data.error ?? 'Something went wrong.')
+      setDeleteLoading(false)
+      return
+    }
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   async function changePassword(e: React.FormEvent) {
     e.preventDefault()
@@ -136,6 +155,41 @@ export default function AccountPage() {
             {pwLoading ? 'Updating…' : 'Update Password'}
           </button>
         </form>
+      </div>
+      {/* Delete account */}
+      <div className="bg-gray-900 border border-red-900/40 rounded-xl p-6 space-y-4">
+        <div>
+          <h2 className="font-semibold text-white">Delete Account</h2>
+          <p className="text-xs text-gray-400 mt-1">Permanently delete your account and all associated data. This cannot be undone.</p>
+        </div>
+        {!deleteConfirm ? (
+          <button
+            onClick={() => setDeleteConfirm(true)}
+            className="px-5 py-2 bg-gray-800 hover:bg-red-900/60 border border-red-900/50 rounded-lg text-sm font-semibold transition-colors text-red-400"
+          >
+            Delete My Account
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-white">Are you sure? This will permanently delete your account and cannot be reversed.</p>
+            {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteLoading}
+                className="px-5 py-2 bg-red-700 hover:bg-red-600 disabled:opacity-50 rounded-lg text-sm font-semibold transition-colors text-white"
+              >
+                {deleteLoading ? 'Deleting…' : 'Yes, Delete My Account'}
+              </button>
+              <button
+                onClick={() => { setDeleteConfirm(false); setDeleteError(null) }}
+                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition-colors text-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
