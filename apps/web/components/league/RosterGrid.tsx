@@ -267,10 +267,8 @@ export function RosterGrid({
 
   function navigateDate(delta: number) {
     const newDate = addDays(displayDate, delta)
-    // Don't navigate before matchup start or after today+6 (planning future lineup)
-    const minDate = matchupPeriod?.start ?? '2020-01-01'
-    const maxDate = addDays(today, 6)
-    if (newDate < minDate || newDate > maxDate) return
+    // Allow any past date; cap future at today (no future stats exist)
+    if (newDate > today) return
     startTransition(() => router.push(`?date=${newDate}`))
   }
 

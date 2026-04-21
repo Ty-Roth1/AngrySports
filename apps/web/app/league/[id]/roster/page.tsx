@@ -173,8 +173,10 @@ export default async function RosterPage({
         if (homePlayers.length > 0 && homeAbbr) teamsWithLineups.add(homeAbbr)
         if (awayPlayers.length > 0 && awayAbbr) teamsWithLineups.add(awayAbbr)
         for (const p of [...homePlayers, ...awayPlayers]) {
-          if (p.id && p.battingOrder) {
-            lineupPositions[p.id as number] = Math.floor((p.battingOrder as number) / 100)
+          const mlbId = p.person?.id ?? p.id
+          const order = Number(p.battingOrder)
+          if (mlbId && order) {
+            lineupPositions[mlbId as number] = Math.floor(order / 100)
           }
         }
       }
