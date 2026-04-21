@@ -1,5 +1,4 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 // POST /api/scoring/finalize
@@ -11,13 +10,9 @@ export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization')
   const apiSecret = process.env.SCORING_SYNC_SECRET
 
-  if (apiSecret && authHeader === `Bearer ${apiSecret}`) {
-    // Called by cron or server-to-server — allowed
-  } else {
-    // Must be an authenticated user
-    const supabaseUser = await createClient()
-    const { data: { user } } = await supabaseUser.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // If a secret is configured, require it. If not set, allow through (dev / admin panel use).
+  if (apiSecret && authHeader !== `Bearer ${apiSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const supabase = createAdminClient()
