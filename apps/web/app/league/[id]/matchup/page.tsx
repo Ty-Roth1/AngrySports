@@ -83,9 +83,13 @@ export default async function MatchupPage({
   }
   const weekMeta = Array.from(weekMap.values()).sort((a, b) => a.week - b.week)
 
-  // Determine current week: any active → contains today → latest with period_start ≤ today → last week overall
+  // Determine current week:
+  // 1. A week marked active whose period hasn't ended yet
+  // 2. The week whose date range contains today
+  // 3. The latest week that has already started (handles Monday morning before sync marks new week active)
+  // 4. Last week overall as fallback
   const currentWeek =
-    weekMeta.find(w => w.anyActive)?.week ??
+    weekMeta.find(w => w.anyActive && w.period_end >= today)?.week ??
     weekMeta.find(w => w.period_start <= today && w.period_end >= today)?.week ??
     [...weekMeta].reverse().find(w => w.period_start <= today)?.week ??
     weekMeta[weekMeta.length - 1]?.week ??
