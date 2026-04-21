@@ -45,7 +45,8 @@ export function TopBar({ profile }: TopBarProps) {
     pathname === '/settings'
 
   return (
-    <header className="h-14 border-b border-gray-800 bg-gray-900 flex-shrink-0 grid grid-cols-3 items-center px-6">
+    <header className="flex-shrink-0 border-b border-gray-800 bg-gray-900 pt-safe">
+      <div className="h-14 grid grid-cols-3 items-center px-6">
 
       {/* Left: back button on detail pages, league name otherwise */}
       <div className="flex items-center gap-2">
@@ -84,6 +85,7 @@ export function TopBar({ profile }: TopBarProps) {
         </button>
       </div>
 
+      </div>
     </header>
   )
 }
