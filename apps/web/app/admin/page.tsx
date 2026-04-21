@@ -25,6 +25,9 @@ export default function AdminPage() {
   const [importLoading, setImportLoading] = useState(false)
   const [importLogs, setImportLogs] = useState<string[] | null>(null)
 
+  const [finalizeStatus, setFinalizeStatus] = useState<string | null>(null)
+  const [finalizeLoading, setFinalizeLoading] = useState(false)
+
   async function handleImportYahooRosters() {
     if (!importLeagueId.trim()) return
     setImportLoading(true)
@@ -101,6 +104,20 @@ export default function AdminPage() {
     const data = await res.json()
     setProbableStatus(res.ok ? `Synced ${data.synced} probable starters (today + next 2 days).` : `Error: ${data.error}`)
     setProbableLoading(false)
+  }
+
+  async function handleFinalize() {
+    setFinalizeLoading(true)
+    setFinalizeStatus(null)
+    const res = await fetch('/api/scoring/finalize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const data = await res.json()
+    setFinalizeStatus(res.ok
+      ? `Finalized ${data.finalized} matchup(s), updated ${data.teams_updated} team(s).`
+      : `Error: ${data.error ?? data.message}`)
+    setFinalizeLoading(false)
   }
 
   async function handleScoreSync() {
@@ -243,6 +260,22 @@ export default function AdminPage() {
         >
           Open Diagnostics →
         </a>
+      </div>
+
+      {/* Finalize Past Weeks */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
+        <h2 className="font-semibold text-white">Finalize Past Weeks</h2>
+        <p className="text-sm text-gray-400">
+          Marks any matchups whose period has ended as final and recalculates wins / losses / standings.
+          Run this Monday morning if standings didn&apos;t update automatically.
+        </p>
+        <button onClick={handleFinalize} disabled={finalizeLoading}
+          className="px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg font-semibold transition-colors text-white">
+          {finalizeLoading ? 'Finalizing...' : 'Finalize & Update Standings'}
+        </button>
+        {finalizeStatus && (
+          <p className={`text-sm ${finalizeStatus.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>{finalizeStatus}</p>
+        )}
       </div>
 
       {/* Single-day Score Sync */}

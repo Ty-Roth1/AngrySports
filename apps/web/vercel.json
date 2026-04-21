@@ -7,6 +7,10 @@
     {
       "path": "/api/scoring/cron",
       "schedule": "* 0-6 * * *"
+    },
+    {
+      "path": "/api/scoring/finalize-cron",
+      "schedule": "0 7 * * 1"
     }
   ]
 }
