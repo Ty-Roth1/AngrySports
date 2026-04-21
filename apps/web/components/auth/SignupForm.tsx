@@ -12,6 +12,7 @@ export function SignupForm() {
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [confirmationSent, setConfirmationSent] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -19,7 +20,7 @@ export function SignupForm() {
     setError(null)
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -33,8 +34,32 @@ export function SignupForm() {
       return
     }
 
-    router.push('/dashboard')
-    router.refresh()
+    // If email confirmation is required, session will be null until confirmed
+    if (data.session) {
+      router.push('/dashboard')
+      router.refresh()
+    } else {
+      setError(null)
+      setLoading(false)
+      // Show confirmation message inline
+      setConfirmationSent(true)
+    }
+  }
+
+  if (confirmationSent) {
+    return (
+      <div className="text-center space-y-4">
+        <div className="text-4xl">📧</div>
+        <h2 className="text-lg font-semibold text-white">Check your email</h2>
+        <p className="text-sm text-gray-400">
+          We sent a confirmation link to <span className="text-white">{email}</span>.
+          Click it to activate your account and sign in.
+        </p>
+        <Link href="/login" className="block text-sm text-blue-400 hover:text-blue-300">
+          Back to sign in
+        </Link>
+      </div>
+    )
   }
 
   return (
