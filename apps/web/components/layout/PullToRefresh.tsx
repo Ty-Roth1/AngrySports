@@ -28,11 +28,14 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
     else setDistance(0)
   }, [refreshing])
 
-  const onTouchEnd = useCallback(() => {
+  const onTouchEnd = useCallback(async () => {
     if (startY.current < 0) return
     startY.current = -1
     if (distance >= THRESHOLD) {
       setRefreshing(true)
+      try {
+        await fetch('/api/scoring/live', { method: 'POST' })
+      } catch { /* ignore — still refresh */ }
       router.refresh()
       setTimeout(() => {
         setRefreshing(false)
@@ -51,7 +54,7 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
-      className="flex-1 overflow-y-auto bg-gray-950 p-4 md:p-6 pb-20 md:pb-6 relative"
+      className="flex-1 overflow-y-auto bg-gray-950 p-4 md:p-6 pb-nav-safe md:pb-6 relative"
       style={{ overscrollBehaviorY: 'none' }}
     >
       {/* Pull indicator */}

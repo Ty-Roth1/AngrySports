@@ -19,7 +19,7 @@ const config: CapacitorConfig = {
 
   ios: {
     // Builds a WKWebView-based native shell
-    contentInset: 'automatic',
+    contentInset: 'never',
     backgroundColor: '#111827',   // matches gray-900 app background
     scrollEnabled: true,
     allowsLinkPreview: false,

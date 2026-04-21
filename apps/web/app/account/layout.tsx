@@ -23,7 +23,7 @@ export default async function AccountLayout({ children }: { children: React.Reac
       </div>
       <div className="flex flex-col flex-1 overflow-hidden">
         <TopBar profile={profile} />
-        <main className="flex-1 overflow-y-auto bg-gray-950 p-6 pb-safe">
+        <main className="flex-1 overflow-y-auto bg-gray-950 p-6 pb-nav-safe">
           {children}
         </main>
       </div>
