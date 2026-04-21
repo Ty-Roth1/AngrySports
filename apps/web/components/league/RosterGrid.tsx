@@ -233,6 +233,7 @@ export function RosterGrid({
   weekScores = {}, todayScores = {}, seasonYear,
   selectedDate, matchupPeriod, isReadOnly = false,
   liveTeams = [], probableStarterIds = [],
+  lineupPositions = {}, teamsWithLineups = [],
   historyRecords = [], deadMoneyRecords = [],
 }: {
   players: RosterPlayer[]
@@ -249,6 +250,8 @@ export function RosterGrid({
   isReadOnly?: boolean
   liveTeams?: string[]
   probableStarterIds?: string[]
+  lineupPositions?: Record<number, number>
+  teamsWithLineups?: string[]
   historyRecords?: SeasonRecord[]
   deadMoneyRecords?: DeadMoneyRecord[]
 }) {
@@ -378,6 +381,7 @@ export function RosterGrid({
           onChangeSlot={changeSlot}
           selectedDate={displayDate} isReadOnly={isReadOnly}
           liveTeams={liveTeams} probableStarterIds={probableStarterIds}
+          lineupPositions={lineupPositions} teamsWithLineups={teamsWithLineups}
         />
       )}
       {view === 'payroll' && (
@@ -413,6 +417,7 @@ function RosterView({
   slots, settings, isContractLeague, contracts, weekScores, todayScores,
   pendingId, onChangeSlot, selectedDate, isReadOnly,
   liveTeams, probableStarterIds, isToday,
+  lineupPositions, teamsWithLineups,
 }: {
   slots: RosterSlot[]
   settings: FullSettings
@@ -429,12 +434,16 @@ function RosterView({
   liveTeams?: string[]
   probableStarterIds?: string[]
   isToday?: boolean
+  lineupPositions?: Record<number, number>
+  teamsWithLineups?: string[]
 }) {
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
   const viewingToday = !selectedDate || selectedDate === todayStr
   const dayLabel = viewingToday ? 'Td' : formatDate(selectedDate!).split(',')[0]  // e.g. "Mon"
   const liveSet = new Set(liveTeams ?? [])
   const probableSet = new Set(probableStarterIds ?? [])
+  const lineupPosMap = lineupPositions ?? {}
+  const lineupTeamSet = new Set(teamsWithLineups ?? [])
   const activeSlots   = slots.filter(s => !['BENCH', 'IL', 'TAXI', 'NA'].includes(s.slot_type))
   const inactiveSlots = slots.filter(s =>  ['BENCH', 'IL', 'TAXI', 'NA'].includes(s.slot_type))
 
@@ -458,6 +467,12 @@ function RosterView({
     // Probable starter: pitcher is scheduled to start on the selected date
     const isProbable = !!p && probableSet.has(p.player_id)
 
+    // Lineup badge — only when viewing today and team has a posted lineup
+    const lineupSpot = viewingToday && p ? lineupPosMap[p.mlb_id] : undefined
+    const teamHasLineup = viewingToday && !!p?.mlb_team && lineupTeamSet.has(p.mlb_team)
+    // "Confirmed out" = team posted lineup but player isn't in it, and they're a hitter
+    const isConfirmedOut = teamHasLineup && lineupSpot === undefined && !!p && !PITCHER_POSITIONS.has(p.primary_position)
+
     return (
       <tr className={`border-b border-gray-800 last:border-0 transition-colors ${isLive ? 'bg-green-950/40 hover:bg-green-950/60' : p ? 'hover:bg-gray-800/30' : ''}`}>
         {/* Slot label */}
@@ -469,14 +484,27 @@ function RosterView({
         <td className="pl-0.5 pr-2 py-1.5">
           {p ? (
             <div className="flex items-center gap-2">
-              <div className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
-                <Image
-                  src={`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${p.mlb_id}/headshot/67/current`}
-                  alt={p.full_name}
-                  fill
-                  className="object-cover object-center"
-                  unoptimized
-                />
+              <div className="relative w-8 h-8 flex-shrink-0">
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700">
+                  <Image
+                    src={`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${p.mlb_id}/headshot/67/current`}
+                    alt={p.full_name}
+                    fill
+                    className="object-cover object-center"
+                    unoptimized
+                  />
+                </div>
+                {/* Lineup badge — bottom-right corner */}
+                {lineupSpot !== undefined && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-[9px] font-bold text-white leading-none z-10">
+                    {lineupSpot}
+                  </span>
+                )}
+                {isConfirmedOut && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center text-[9px] font-bold text-white leading-none z-10">
+                    ✕
+                  </span>
+                )}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1">

@@ -116,7 +116,7 @@ export default async function TeamRosterPage({
 
   // Fetch live games, probable starters, team history, and dead money in parallel
   const [liveGamesRes, probableRes, historyRes, deadMoneyRes] = await Promise.all([
-    fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=team`, { next: { revalidate: 120 } }),
+    fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=team,lineups`, { next: { revalidate: 120 } }),
     supabase
       .from('pitcher_probable_starts')
       .select('player_id')
@@ -138,15 +138,30 @@ export default async function TeamRosterPage({
   const deadMoneyRecords = (deadMoneyRes.data ?? []) as any[]
 
   const liveTeams: string[] = []
+  const lineupPositions: Record<number, number> = {}
+  const teamsWithLineups = new Set<string>()
+
   if (liveGamesRes.ok) {
     const liveJson = await liveGamesRes.json()
     for (const dateEntry of liveJson.dates ?? []) {
       for (const game of dateEntry.games ?? []) {
-        if (game.status?.abstractGameState === 'Live') {
-          const away = game.teams?.away?.team?.abbreviation
-          const home = game.teams?.home?.team?.abbreviation
-          if (away) liveTeams.push(away)
-          if (home) liveTeams.push(home)
+        const state    = game.status?.abstractGameState ?? ''
+        const homeAbbr = game.teams?.home?.team?.abbreviation as string | undefined
+        const awayAbbr = game.teams?.away?.team?.abbreviation as string | undefined
+
+        if (state === 'Live') {
+          if (homeAbbr) liveTeams.push(homeAbbr)
+          if (awayAbbr) liveTeams.push(awayAbbr)
+        }
+
+        const homePlayers: any[] = game.lineups?.homePlayers ?? []
+        const awayPlayers: any[] = game.lineups?.awayPlayers ?? []
+        if (homePlayers.length > 0 && homeAbbr) teamsWithLineups.add(homeAbbr)
+        if (awayPlayers.length > 0 && awayAbbr) teamsWithLineups.add(awayAbbr)
+        for (const p of [...homePlayers, ...awayPlayers]) {
+          if (p.id && p.battingOrder) {
+            lineupPositions[p.id as number] = Math.floor((p.battingOrder as number) / 100)
+          }
         }
       }
     }
@@ -260,6 +275,8 @@ export default async function TeamRosterPage({
         isReadOnly={isReadOnly}
         liveTeams={liveTeams}
         probableStarterIds={probableStarterIds}
+        lineupPositions={lineupPositions}
+        teamsWithLineups={[...teamsWithLineups]}
         historyRecords={historyRecords}
         deadMoneyRecords={deadMoneyRecords}
       />
