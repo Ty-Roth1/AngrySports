@@ -345,7 +345,8 @@ export function RosterGrid({
             </span>
             <button
               onClick={() => navigateDate(1)}
-              className="text-gray-400 hover:text-white transition-colors px-1"
+              disabled={isToday}
+              className="px-1 transition-colors text-gray-400 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:text-gray-400"
             >
               ›
             </button>
