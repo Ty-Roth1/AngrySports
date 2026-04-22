@@ -158,12 +158,12 @@ export default async function TeamRosterPage({
         const awayPlayers: any[] = game.lineups?.awayPlayers ?? []
         if (homePlayers.length > 0 && homeAbbr) teamsWithLineups.add(homeAbbr)
         if (awayPlayers.length > 0 && awayAbbr) teamsWithLineups.add(awayAbbr)
-        for (const p of [...homePlayers, ...awayPlayers]) {
-          const mlbId = p.person?.id ?? p.id
-          const order = Number(p.battingOrder)
-          if (mlbId && order) {
-            lineupPositions[mlbId as number] = Math.floor(order / 100)
-          }
+        // Batting order = array index + 1 (no battingOrder field in API response)
+        for (let i = 0; i < homePlayers.length; i++) {
+          if (homePlayers[i].id) lineupPositions[homePlayers[i].id as number] = i + 1
+        }
+        for (let i = 0; i < awayPlayers.length; i++) {
+          if (awayPlayers[i].id) lineupPositions[awayPlayers[i].id as number] = i + 1
         }
       }
     }
