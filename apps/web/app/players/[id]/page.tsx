@@ -11,6 +11,7 @@ import { BackButton } from '@/components/BackButton'
 import { NicknameEditor } from '@/components/player/NicknameEditor'
 import { PlayerClaimButton } from '@/components/player/PlayerClaimButton'
 import { PlayerDropButton } from '@/components/player/PlayerDropButton'
+import { WatchlistButton } from '@/components/player/WatchlistButton'
 import Image from 'next/image'
 
 export default async function PlayerPage({
@@ -175,6 +176,15 @@ export default async function PlayerPage({
     }
   }
 
+  // Check if user has this player on their watchlist
+  const { data: watchlistEntry } = user ? await supabase
+    .from('watchlist')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('player_id', id)
+    .maybeSingle() : { data: null }
+  const isWatched = !!watchlistEntry
+
   // Fetch from MLB API + Savant in parallel
   const [mlbDetail, mlbStats, statcast] = await Promise.all([
     fetchPlayerDetail(player.mlb_id),
@@ -265,8 +275,11 @@ export default async function PlayerPage({
           )}
         </div>
 
-        {/* Right side: fantasy team badge or add button */}
+        {/* Right side: watchlist, fantasy team badge, add/drop buttons */}
         <div className="flex-shrink-0 space-y-3">
+          {user && (
+            <WatchlistButton playerId={id} isWatched={isWatched} />
+          )}
           {contract && (
             <div className="bg-gray-900 border border-gray-700 rounded-xl p-4 text-right">
               <p className="text-xs text-gray-400 mb-1">Fantasy Team</p>

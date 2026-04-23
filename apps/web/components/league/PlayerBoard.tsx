@@ -70,7 +70,7 @@ export function PlayerBoard({
   leagueId: string
   myTeamId: string
   players: PlayerRow[]
-  view: 'free_agents' | 'owned' | 'all'
+  view: 'free_agents' | 'owned' | 'all' | 'watchlist'
   myRoster: RosterPlayer[]
   myClaims: PendingClaim[]
   isFaab: boolean
@@ -150,7 +150,7 @@ export function PlayerBoard({
     setProcessing(false)
   }
 
-  const canShowClaimPanel = view === 'free_agents' || view === 'all'
+  const canShowClaimPanel = view === 'free_agents' || view === 'all' || view === 'watchlist'
 
   return (
     <div className="space-y-6">
@@ -232,7 +232,10 @@ export function PlayerBoard({
               {players.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-10 text-center text-gray-500">
-                    No players match your search.
+                    {view === 'watchlist'
+                      ? 'No players on your watchlist yet. Open any player page and tap Watch.'
+                      : 'No players match your search.'
+                    }
                   </td>
                 </tr>
               ) : players.map(p => {

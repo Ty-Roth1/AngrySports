@@ -14,7 +14,7 @@ export default async function PlayersPage({
 }) {
   const { id: leagueId } = await params
   const { q, pos, starting, view: viewParam } = await searchParams
-  const view = (viewParam === 'owned' || viewParam === 'all') ? viewParam : 'free_agents'
+  const view = (viewParam === 'owned' || viewParam === 'all' || viewParam === 'watchlist') ? viewParam : 'free_agents'
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -213,6 +213,36 @@ export default async function PlayersPage({
     }))
   }
 
+  // Watchlist players
+  let watchlistPlayerIds: string[] = []
+  if (view === 'watchlist') {
+    const { data: wl } = await supabase
+      .from('watchlist')
+      .select('player_id')
+      .eq('user_id', user.id)
+    watchlistPlayerIds = (wl ?? []).map(r => r.player_id)
+  }
+
+  if (view === 'watchlist') {
+    if (watchlistPlayerIds.length === 0) {
+      players = []
+    } else {
+      const { data: wlPlayers } = await supabase
+        .from('players')
+        .select('id, full_name, primary_position, mlb_team, status, is_rookie, rank, season_pts')
+        .in('id', watchlistPlayerIds)
+        .order('rank', { ascending: true, nullsFirst: false })
+
+      players = (wlPlayers ?? []).map(p => ({
+        ...p,
+        rank: (p as any).rank ?? null,
+        season_pts: (p as any).season_pts ?? null,
+        probable_starts: startsMap.get(p.id) ?? [],
+        owned_by: ownedByMap[p.id] ?? null,
+      }))
+    }
+  }
+
   // My roster for drop selection
   const { data: myRoster } = await supabase
     .from('rosters')
@@ -264,6 +294,7 @@ export default async function PlayersPage({
           { key: 'free_agents', label: 'Free Agents' },
           { key: 'owned',       label: 'Owned' },
           { key: 'all',         label: 'All Players' },
+          { key: 'watchlist',   label: '★ Watchlist' },
         ] as const).map(tab => (
           <Link
             key={tab.key}
@@ -293,7 +324,7 @@ export default async function PlayersPage({
           <option value="">All Pos</option>
           {positions.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-        {view !== 'owned' && (
+        {view !== 'owned' && view !== 'watchlist' && (
           <select name="starting" defaultValue={starting ?? ''} className="input w-44">
             <option value="">All Pitchers</option>
             <option value="today">Starting Today</option>
