@@ -150,7 +150,7 @@ export function PlayerBoard({
     setProcessing(false)
   }
 
-  const showClaimPanel = view === 'free_agents' || (view === 'all' && !!selectedPlayer)
+  const canShowClaimPanel = view === 'free_agents' || view === 'all'
 
   return (
     <div className="space-y-6">
@@ -208,225 +208,243 @@ export function PlayerBoard({
         </div>
       )}
 
-      <div className={`grid gap-6 ${showClaimPanel ? 'grid-cols-3' : 'grid-cols-1'}`}>
-        {/* Player table */}
-        <div className={showClaimPanel ? 'col-span-2' : 'col-span-1'}>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-white">
-                <thead>
-                  <tr className="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-800">
-                    <th className="text-right px-3 py-2.5 w-12">Rank</th>
-                    <th className="text-left px-4 py-2.5">Player</th>
-                    <th className="text-left px-3 py-2.5">Pos</th>
-                    <th className="text-left px-3 py-2.5">Team</th>
-                    <th className="text-left px-3 py-2.5">Status</th>
-                    <th className="text-right px-3 py-2.5">Pts</th>
+      {/* Full-width player table */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-white">
+            <thead>
+              <tr className="text-xs text-gray-400 uppercase tracking-wide border-b border-gray-800">
+                <th className="text-right px-3 py-2.5 w-12">Rank</th>
+                <th className="text-left px-4 py-2.5">Player</th>
+                <th className="text-left px-3 py-2.5">Pos</th>
+                <th className="text-left px-3 py-2.5">Team</th>
+                <th className="text-left px-3 py-2.5">Status</th>
+                <th className="text-right px-3 py-2.5">Pts</th>
+                {view !== 'free_agents' && (
+                  <th className="text-left px-3 py-2.5">Owner</th>
+                )}
+                {canShowClaimPanel && (
+                  <th className="px-3 py-2.5 w-16" />
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {players.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-10 text-center text-gray-500">
+                    No players match your search.
+                  </td>
+                </tr>
+              ) : players.map(p => {
+                const isSelected = selectedPlayer?.id === p.id
+                const isFa = !p.owned_by
+                const clickable = isFa && canShowClaimPanel
+                return (
+                  <tr
+                    key={p.id}
+                    className={`border-b border-gray-800 last:border-0 transition-colors ${
+                      isSelected
+                        ? 'bg-red-900/30'
+                        : clickable
+                          ? 'hover:bg-gray-800/40 cursor-pointer'
+                          : ''
+                    }`}
+                    onClick={() => clickable ? handleRowClick(p) : undefined}
+                  >
+                    {/* Rank */}
+                    <td className="px-3 py-2.5 text-right">
+                      {p.rank
+                        ? <span className="text-xs font-mono text-gray-400">#{p.rank}</span>
+                        : <span className="text-xs text-gray-700">—</span>
+                      }
+                    </td>
+
+                    {/* Name */}
+                    <td className="px-4 py-2.5">
+                      <Link
+                        href={`/players/${p.id}?leagueId=${leagueId}`}
+                        className="font-medium text-white hover:text-red-400 transition-colors"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {p.full_name}
+                      </Link>
+                      {p.is_rookie && <span className="ml-1 text-xs text-yellow-400">R</span>}
+                      {p.probable_starts && p.probable_starts.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {p.probable_starts.map((s, i) => {
+                            const isToday = s.game_date === new Date().toISOString().split('T')[0]
+                            return (
+                              <span
+                                key={i}
+                                className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                                  isToday ? 'bg-green-900/60 text-green-300' : 'bg-blue-900/60 text-blue-300'
+                                }`}
+                              >
+                                {isToday ? 'Today' : 'Tmrw'} {s.home_away === 'home' ? 'vs' : '@'} {s.opponent}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Pos */}
+                    <td className="px-3 py-2.5 text-gray-400 text-xs">{p.primary_position}</td>
+
+                    {/* MLB Team */}
+                    <td className="px-3 py-2.5 text-gray-400 text-xs">{p.mlb_team ?? '—'}</td>
+
+                    {/* Status */}
+                    <td className="px-3 py-2.5">
+                      <span className={`text-xs font-medium ${STATUS_COLOR[p.status] ?? 'text-gray-400'}`}>
+                        {STATUS_LABEL[p.status] ?? p.status}
+                      </span>
+                    </td>
+
+                    {/* Season pts */}
+                    <td className="px-3 py-2.5 text-right">
+                      {p.season_pts != null
+                        ? <span className="text-xs font-mono text-yellow-300">{p.season_pts.toFixed(1)}</span>
+                        : <span className="text-xs text-gray-700">—</span>
+                      }
+                    </td>
+
+                    {/* Owned by (owned/all views) */}
                     {view !== 'free_agents' && (
-                      <th className="text-left px-3 py-2.5">Owner</th>
+                      <td className="px-3 py-2.5 text-xs">
+                        {p.owned_by
+                          ? <Link
+                              href={`/league/${leagueId}/team/${p.owned_by.id}`}
+                              className="text-blue-400 hover:text-blue-300 transition-colors"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              {p.owned_by.abbreviation}
+                            </Link>
+                          : <span className="text-gray-600">FA</span>
+                        }
+                      </td>
                     )}
-                    {view !== 'owned' && (
-                      <th className="px-3 py-2.5 w-16" />
+
+                    {/* Action indicator */}
+                    {canShowClaimPanel && (
+                      <td className="px-3 py-2.5 text-right">
+                        {isFa && (
+                          <span className="text-xs text-red-400">
+                            {isSelected ? '▶' : isOpenFa ? 'Add' : 'Claim'}
+                          </span>
+                        )}
+                      </td>
                     )}
                   </tr>
-                </thead>
-                <tbody>
-                  {players.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="px-5 py-10 text-center text-gray-500">
-                        No players match your search.
-                      </td>
-                    </tr>
-                  ) : players.map(p => {
-                    const isSelected = selectedPlayer?.id === p.id
-                    const isFa = !p.owned_by
-                    const clickable = isFa && view !== 'owned'
-                    return (
-                      <tr
-                        key={p.id}
-                        className={`border-b border-gray-800 last:border-0 transition-colors ${
-                          isSelected
-                            ? 'bg-red-900/30'
-                            : clickable
-                              ? 'hover:bg-gray-800/40 cursor-pointer'
-                              : ''
-                        }`}
-                        onClick={() => clickable ? handleRowClick(p) : undefined}
-                      >
-                        {/* Rank */}
-                        <td className="px-3 py-2.5 text-right">
-                          {p.rank
-                            ? <span className="text-xs font-mono text-gray-400">#{p.rank}</span>
-                            : <span className="text-xs text-gray-700">—</span>
-                          }
-                        </td>
-
-                        {/* Name */}
-                        <td className="px-4 py-2.5">
-                          <Link
-                            href={`/players/${p.id}?leagueId=${leagueId}`}
-                            className="font-medium text-white hover:text-red-400 transition-colors"
-                            onClick={e => e.stopPropagation()}
-                          >
-                            {p.full_name}
-                          </Link>
-                          {p.is_rookie && <span className="ml-1 text-xs text-yellow-400">R</span>}
-                          {p.probable_starts && p.probable_starts.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-0.5">
-                              {p.probable_starts.map((s, i) => {
-                                const isToday = s.game_date === new Date().toISOString().split('T')[0]
-                                return (
-                                  <span
-                                    key={i}
-                                    className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                                      isToday ? 'bg-green-900/60 text-green-300' : 'bg-blue-900/60 text-blue-300'
-                                    }`}
-                                  >
-                                    {isToday ? 'Today' : 'Tmrw'} {s.home_away === 'home' ? 'vs' : '@'} {s.opponent}
-                                  </span>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Pos */}
-                        <td className="px-3 py-2.5 text-gray-400 text-xs">{p.primary_position}</td>
-
-                        {/* MLB Team */}
-                        <td className="px-3 py-2.5 text-gray-400 text-xs">{p.mlb_team ?? '—'}</td>
-
-                        {/* Status */}
-                        <td className="px-3 py-2.5">
-                          <span className={`text-xs font-medium ${STATUS_COLOR[p.status] ?? 'text-gray-400'}`}>
-                            {STATUS_LABEL[p.status] ?? p.status}
-                          </span>
-                        </td>
-
-                        {/* Season pts */}
-                        <td className="px-3 py-2.5 text-right">
-                          {p.season_pts != null
-                            ? <span className="text-xs font-mono text-yellow-300">{p.season_pts.toFixed(1)}</span>
-                            : <span className="text-xs text-gray-700">—</span>
-                          }
-                        </td>
-
-                        {/* Owned by (owned/all views) */}
-                        {view !== 'free_agents' && (
-                          <td className="px-3 py-2.5 text-xs">
-                            {p.owned_by
-                              ? <Link
-                                  href={`/league/${leagueId}/team/${p.owned_by.id}`}
-                                  className="text-blue-400 hover:text-blue-300 transition-colors"
-                                  onClick={e => e.stopPropagation()}
-                                >
-                                  {p.owned_by.abbreviation}
-                                </Link>
-                              : <span className="text-gray-600">FA</span>
-                            }
-                          </td>
-                        )}
-
-                        {/* Action */}
-                        {view !== 'owned' && (
-                          <td className="px-3 py-2.5 text-right">
-                            {isFa && (
-                              <span className="text-xs text-red-400">
-                                {isSelected ? '▶' : isOpenFa ? 'Add' : 'Claim'}
-                              </span>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
+      </div>
 
-        {/* Claim panel */}
-        {showClaimPanel && (
-          <div className="col-span-1">
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-4 sticky top-4">
-              <h3 className="font-semibold text-sm text-white">{isOpenFa ? 'Add Player' : 'Claim Player'}</h3>
+      {/* Claim overlay — fixed bottom sheet */}
+      {canShowClaimPanel && selectedPlayer && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 z-40"
+            onClick={() => { setSelectedPlayer(null); setError(null) }}
+          />
+          {/* Sheet */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-gray-800 rounded-t-2xl shadow-2xl">
+            <div className="p-4 space-y-4" style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-white">{isOpenFa ? 'Add Player' : 'Claim Player'}</h3>
+                <button
+                  onClick={() => { setSelectedPlayer(null); setError(null) }}
+                  className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 text-gray-400 hover:text-white transition-colors text-sm"
+                >
+                  ✕
+                </button>
+              </div>
 
-              {!selectedPlayer ? (
-                <p className="text-xs text-gray-500">
-                  {isOpenFa ? 'Select a free agent to add them.' : 'Select a free agent to claim them.'}
+              {/* Selected player info */}
+              <div className="bg-red-900/30 border border-red-700 rounded-lg px-3 py-2">
+                <p className="font-semibold text-sm text-white">{selectedPlayer.full_name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {selectedPlayer.primary_position} · {selectedPlayer.mlb_team ?? 'FA'}
                 </p>
-              ) : (
-                <>
-                  <div className="bg-red-900/30 border border-red-700 rounded-lg px-3 py-2">
-                    <p className="font-semibold text-sm text-white">{selectedPlayer.full_name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{selectedPlayer.primary_position} · {selectedPlayer.mlb_team ?? 'FA'}</p>
-                    {selectedPlayer.rank && (
-                      <p className="text-xs text-gray-500 mt-0.5">#{selectedPlayer.rank} OVR · {selectedPlayer.season_pts?.toFixed(1) ?? '0'} pts</p>
-                    )}
-                  </div>
+                {selectedPlayer.rank && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    #{selectedPlayer.rank} OVR · {selectedPlayer.season_pts?.toFixed(1) ?? '0'} pts
+                  </p>
+                )}
+              </div>
 
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Drop player (if roster full)</label>
-                    <select
-                      value={dropPlayerId}
-                      onChange={e => setDropPlayerId(e.target.value)}
-                      className="input text-sm"
-                    >
-                      <option value="">— No drop —</option>
-                      {myRoster.map(r => (
-                        <option key={r.player_id} value={r.player_id}>
-                          {r.player.full_name} ({r.player.primary_position})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              {/* Drop select */}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Drop player (if roster full)</label>
+                <select
+                  value={dropPlayerId}
+                  onChange={e => setDropPlayerId(e.target.value)}
+                  className="input text-sm"
+                >
+                  <option value="">— No drop —</option>
+                  {myRoster.map(r => (
+                    <option key={r.player_id} value={r.player_id}>
+                      {r.player.full_name} ({r.player.primary_position})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                  {isFaab && (
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">
-                        FAAB Bid — ${faabRemaining} available
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={faabRemaining}
-                        value={bidAmount}
-                        onChange={e => setBidAmount(Number(e.target.value))}
-                        className="input"
-                      />
-                      <p className="text-xs text-gray-600 mt-1">
-                        Remaining after bid: ${Math.max(0, faabRemaining - bidAmount)}
-                      </p>
-                    </div>
-                  )}
+              {/* FAAB bid */}
+              {isFaab && (
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">
+                    FAAB Bid — ${faabRemaining} available
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={faabRemaining}
+                    value={bidAmount}
+                    onChange={e => setBidAmount(Number(e.target.value))}
+                    className="input"
+                  />
+                  <p className="text-xs text-gray-600 mt-1">
+                    Remaining after bid: ${Math.max(0, faabRemaining - bidAmount)}
+                  </p>
+                </div>
+              )}
 
-                  <button
-                    onClick={submitClaim}
-                    disabled={submitting}
-                    className="w-full py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 rounded-lg text-sm font-semibold transition-colors text-white"
-                  >
-                    {submitting
-                      ? (isOpenFa ? 'Adding…' : 'Submitting…')
-                      : isOpenFa
-                        ? 'Add Player'
-                        : isFaab
-                          ? `Submit $${bidAmount} Claim`
-                          : 'Claim Player'
-                    }
-                  </button>
+              {/* Error */}
+              {error && (
+                <p className="text-xs text-red-400">{error}</p>
+              )}
 
-                  {!isFaab && !isOpenFa && (
-                    <p className="text-xs text-gray-500 text-center">
-                      Claim is processed on waiver day. No one else claims → player is yours.
-                    </p>
-                  )}
-                </>
+              {/* Submit */}
+              <button
+                onClick={submitClaim}
+                disabled={submitting}
+                className="w-full py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 rounded-lg text-sm font-semibold transition-colors text-white"
+              >
+                {submitting
+                  ? (isOpenFa ? 'Adding…' : 'Submitting…')
+                  : isOpenFa
+                    ? 'Add Player'
+                    : isFaab
+                      ? `Submit $${bidAmount} Claim`
+                      : 'Claim Player'
+                }
+              </button>
+
+              {!isFaab && !isOpenFa && (
+                <p className="text-xs text-gray-500 text-center">
+                  Claim is processed on waiver day. No one else claims → player is yours.
+                </p>
               )}
             </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   )
 }
